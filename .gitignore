@@ -1,6 +1,19 @@
 node_modules/
+dist/
+.next/
+.turbo/
 .env
 .env.*
 !.env.example
 *.log
 .DS_Store
+*.tsbuildinfo
+
+# Prisma
+apps/api/prisma/migrations/**/migration_lock.toml
+
+# MinIO data
+mkt-*-data/
+
+# Coverage
+coverage/

@@ -1,0 +1,108 @@
+generated: 2026-02-08
+project: Synap6ia Marketing
+project_key: MKT
+tracking_system: file-system
+story_location: "_bmad-output/implementation-artifacts"
+
+development_status:
+  # Epic 1: Project Foundation & User Authentication (Phase 0)
+  epic-1: in-progress
+  1-1-initialize-monorepo: done
+  1-2-docker-compose-infrastructure: done
+  1-3-express-api-scaffold: backlog
+  1-4-user-registration-login-jwt: backlog
+  1-5-password-reset-flow: backlog
+  1-6-rbac-multi-tenant-isolation: backlog
+  1-7-nextjs-dashboard-scaffold: backlog
+  epic-1-retrospective: optional
+
+  # Epic 2: Brand Management & Integrations (Phase 0)
+  epic-2: backlog
+  2-1-organization-user-invitation: backlog
+  2-2-brand-product-management: backlog
+  2-3-social-account-oauth: backlog
+  2-4-ad-account-connection: backlog
+  2-5-white-label-branding: backlog
+  2-6-notification-preferences: backlog
+  epic-2-retrospective: optional
+
+  # Epic 3: Content Creation AI Pipeline (Phase 1)
+  epic-3: backlog
+  3-1-content-input-submission: backlog
+  3-2-audio-input-whisper: backlog
+  3-3-ai-content-research: backlog
+  3-4-ai-content-generation-claude: backlog
+  3-5-dalle-visual-generation-minio: backlog
+  epic-3-retrospective: optional
+
+  # Epic 4: Content Approval & Multi-Platform Publishing (Phase 1)
+  epic-4: backlog
+  4-1-approval-circuit-slack: backlog
+  4-2-email-approval-notifications: backlog
+  4-3-approval-reminder-system: backlog
+  4-4-multi-platform-adaptation: backlog
+  4-5-automated-publishing: backlog
+  4-6-editorial-calendar-dashboard: backlog
+  epic-4-retrospective: optional
+
+  # Epic 5: Content Performance & Dashboard (Phase 1)
+  epic-5: backlog
+  5-1-metrics-collection-linkedin-facebook: backlog
+  5-2-metrics-collection-instagram-twitter-tiktok: backlog
+  5-3-engagement-score-calculation: backlog
+  5-4-winning-content-signal-detection: backlog
+  5-5-content-ad-performance-dashboard: backlog
+  5-6-realtime-agent-status-websocket: backlog
+  epic-5-retrospective: optional
+
+  # Epic 6: Lead Capture & AI Qualification (Phase 2)
+  epic-6: backlog
+  6-1-lead-ingestion-multi-source: backlog
+  6-2-lead-deduplication-merge: backlog
+  6-3-ai-lead-scoring-qualification: backlog
+  6-4-hot-lead-auto-booking: backlog
+  6-5-ai-sales-briefing: backlog
+  6-6-lead-pipeline-funnel-dashboard: backlog
+  epic-6-retrospective: optional
+
+  # Epic 7: Lead Nurturing & Conversion (Phase 2)
+  epic-7: backlog
+  7-1-lead-sequence-management: backlog
+  7-2-personalized-email-whatsapp-followup: backlog
+  7-3-response-analysis-intent-detection: backlog
+  7-4-lead-objection-response: backlog
+  7-5-human-escalation-workflow: backlog
+  7-6-conversion-tracking-attribution: backlog
+  epic-7-retrospective: optional
+
+  # Epic 8: Advertising Campaign Management (Phase 3)
+  epic-8: backlog
+  8-1-competitive-ad-research: backlog
+  8-2-ai-campaign-proposal: backlog
+  8-3-campaign-approval-gate: backlog
+  8-4-facebook-ads-launch: backlog
+  8-5-tiktok-ads-launch: backlog
+  8-6-ad-metrics-collection: backlog
+  8-7-ai-campaign-optimization: backlog
+  epic-8-retrospective: optional
+
+  # Epic 9: Analytics, Reports & Internationalization (Phase 1-3)
+  epic-9: backlog
+  9-1-kpi-streaming-sse: backlog
+  9-2-daily-analytics-aggregation: backlog
+  9-3-weekly-ai-report: backlog
+  9-4-approval-management-dashboard: backlog
+  9-5-dashboard-internationalization: backlog
+  epic-9-retrospective: optional
+
+  # Epic 10: Inter-Agent Communication & System Utilities (Phase 3)
+  epic-10: backlog
+  10-1-oauth-token-refresh: backlog
+  10-2-agent-messages-bus-dlq: backlog
+  10-3-content-amplification-feedback: backlog
+  10-4-amplification-leads-feedback: backlog
+  10-5-leads-content-feedback: backlog
+  10-6-ai-learning-loop: backlog
+  10-7-ads-content-performance-feedback: backlog
+  10-8-n8n-error-handling-monitoring: backlog
+  epic-10-retrospective: optional
