@@ -83,6 +83,46 @@ export async function sendApprovalReminderEmail(
 
 // ─── Lead Emails (Stories 6.4) ───────────────────────────────
 
+// ─── Nurturing Emails (Stories 7.2, 7.5) ─────────────────────
+
+export async function sendNurturingEmail(
+  to: string,
+  details: { firstName: string; message: string },
+): Promise<void> {
+  await sendEmail(
+    to,
+    `${details.firstName}, un message pour vous — Synap6ia`,
+    `<p>${details.message.replace(/\n/g, '<br>')}</p>`,
+  );
+}
+
+export async function sendEscalationEmail(
+  to: string,
+  details: {
+    leadName: string;
+    company: string;
+    score: number;
+    temperature: string;
+    summary: string;
+  },
+): Promise<void> {
+  await sendEmail(
+    to,
+    `Escalation : ${details.leadName} (${details.company}) — Synap6ia`,
+    `<p>Bonjour,</p>
+<p>Un lead a été escaladé vers vous :</p>
+<table style="border-collapse:collapse;width:100%;max-width:600px">
+  <tr><td style="padding:8px;font-weight:bold">Lead</td><td style="padding:8px">${details.leadName}</td></tr>
+  <tr><td style="padding:8px;font-weight:bold">Entreprise</td><td style="padding:8px">${details.company}</td></tr>
+  <tr><td style="padding:8px;font-weight:bold">Score</td><td style="padding:8px">${details.score}/100</td></tr>
+  <tr><td style="padding:8px;font-weight:bold">Température</td><td style="padding:8px">${details.temperature}</td></tr>
+</table>
+<div style="margin:16px 0;padding:12px;background:#f5f5f5;border-radius:8px">${details.summary.replace(/\n/g, '<br>')}</div>`,
+  );
+}
+
+// ─── Lead Proposal Email (Story 6.4) ─────────────────────────
+
 export async function sendLeadProposalEmail(
   to: string,
   details: {

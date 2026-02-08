@@ -389,7 +389,9 @@ model Lead {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  bookings CalendarBooking[]
+  bookings    CalendarBooking[]
+  interactions LeadInteraction[]
+  enrollments  LeadSequenceEnrollment[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -418,4 +420,58 @@ model CalendarBooking {
   @@index([leadId])
   @@index([status])
   @@map("calendar_bookings")
+}
+
+// ─── Lead Nurturing & Conversion (Agent 3 — Sequences) ───────
+
+model LeadSequence {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  name        String
+  steps       Json     @default("[]")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  enrollments LeadSequenceEnrollment[]
+
+  @@index([tenantId])
+  @@map("lead_sequences")
+}
+
+model LeadSequenceEnrollment {
+  id           String    @id @default(cuid())
+  leadId       String    @map("lead_id")
+  sequenceId   String    @map("sequence_id")
+  status       String    @default("active")
+  currentStep  Int       @default(0) @map("current_step")
+  nextActionAt DateTime? @map("next_action_at")
+  completedAt  DateTime? @map("completed_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  lead     Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  sequence LeadSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, sequenceId])
+  @@index([status, nextActionAt])
+  @@index([leadId])
+  @@index([sequenceId])
+  @@map("lead_sequence_enrollments")
+}
+
+model LeadInteraction {
+  id          String    @id @default(cuid())
+  leadId      String    @map("lead_id")
+  direction   String
+  channel     String
+  content     String
+  aiSentiment String?   @map("ai_sentiment")
+  aiIntent    String?   @map("ai_intent")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([direction])
+  @@map("lead_interactions")
 }

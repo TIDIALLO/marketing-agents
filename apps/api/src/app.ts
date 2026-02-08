@@ -17,6 +17,7 @@ import { approvalPublicRoutes, approvalRoutes } from './routes/approval';
 import { analyticsRoutes } from './routes/analytics';
 import { leadRoutes } from './routes/leads';
 import { webhookRoutes } from './routes/webhooks';
+import { nurturingRoutes } from './routes/nurturing';
 
 const app = express();
 
@@ -70,6 +71,7 @@ app.use('/api/content', authMiddleware, tenantMiddleware, contentRoutes);
 app.use('/api/approval', authMiddleware, tenantMiddleware, approvalRoutes);
 app.use('/api/analytics', authMiddleware, tenantMiddleware, analyticsRoutes);
 app.use('/api/leads', authMiddleware, tenantMiddleware, leadRoutes);
+app.use('/api/leads/nurturing', authMiddleware, tenantMiddleware, nurturingRoutes);
 app.use('/api/admin', authMiddleware, tenantMiddleware, settingsRoutes);
 app.use('/api/settings', authMiddleware, tenantMiddleware, settingsRoutes);
 
