@@ -76,14 +76,14 @@ development_status:
   epic-7-retrospective: optional
 
   # Epic 8: Advertising Campaign Management (Phase 3)
-  epic-8: backlog
-  8-1-competitive-ad-research: backlog
-  8-2-ai-campaign-proposal: backlog
-  8-3-campaign-approval-gate: backlog
-  8-4-facebook-ads-launch: backlog
-  8-5-tiktok-ads-launch: backlog
-  8-6-ad-metrics-collection: backlog
-  8-7-ai-campaign-optimization: backlog
+  epic-8: done
+  8-1-competitive-ad-research: done
+  8-2-ai-campaign-proposal: done
+  8-3-campaign-approval-gate: done
+  8-4-facebook-ads-launch: done
+  8-5-tiktok-ads-launch: done
+  8-6-ad-metrics-collection: done
+  8-7-ai-campaign-optimization: done
   epic-8-retrospective: optional
 
   # Epic 9: Analytics, Reports & Internationalization (Phase 1-3)

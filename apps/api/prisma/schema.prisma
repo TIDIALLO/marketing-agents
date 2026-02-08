@@ -475,3 +475,129 @@ model LeadInteraction {
   @@index([direction])
   @@map("lead_interactions")
 }
+
+// ─── Advertising Campaign Management (Agent 2 — Amplification Engine) ─
+
+model CompetitorAd {
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  brandId         String   @map("brand_id")
+  platform        String
+  competitorName  String   @map("competitor_name")
+  adContent       String   @map("ad_content")
+  imageUrl        String?  @map("image_url")
+  aiAnalysis      String?  @map("ai_analysis")
+  collectedAt     DateTime @default(now()) @map("collected_at")
+
+  @@index([tenantId])
+  @@index([brandId])
+  @@index([collectedAt])
+  @@map("competitor_ads")
+}
+
+model AdCampaign {
+  id                  String    @id @default(cuid())
+  tenantId            String    @map("tenant_id")
+  brandId             String    @map("brand_id")
+  adAccountId         String    @map("ad_account_id")
+  contentSignalId     String?   @map("content_signal_id")
+  name                String
+  platform            String
+  objective           String    @default("traffic")
+  dailyBudget         Float     @map("daily_budget")
+  totalBudget         Float     @map("total_budget")
+  status              String    @default("draft")
+  platformCampaignId  String?   @map("platform_campaign_id")
+  targeting           Json      @default("{}")
+  kpiTargets          Json      @default("{}") @map("kpi_targets")
+  aiProposal          Json?     @map("ai_proposal")
+  startDate           DateTime? @map("start_date")
+  endDate             DateTime? @map("end_date")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  adSets    AdSet[]
+  creatives AdCreative[]
+  metrics   AdMetrics[]
+
+  @@index([tenantId])
+  @@index([brandId])
+  @@index([status])
+  @@map("ad_campaigns")
+}
+
+model AdSet {
+  id               String  @id @default(cuid())
+  campaignId       String  @map("campaign_id")
+  name             String
+  dailyBudget      Float   @map("daily_budget")
+  targeting        Json    @default("{}")
+  platformAdsetId  String? @map("platform_adset_id")
+  status           String  @default("active")
+
+  campaign  AdCampaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  creatives AdCreative[]
+  metrics   AdMetrics[]
+
+  @@index([campaignId])
+  @@map("ad_sets")
+}
+
+model AdCreative {
+  id                  String  @id @default(cuid())
+  campaignId          String  @map("campaign_id")
+  adSetId             String? @map("ad_set_id")
+  title               String
+  body                String
+  imageUrl            String  @map("image_url")
+  callToActionType    String  @default("LEARN_MORE") @map("call_to_action_type")
+  platformCreativeId  String? @map("platform_creative_id")
+
+  campaign AdCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  adSet    AdSet?     @relation(fields: [adSetId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId])
+  @@index([adSetId])
+  @@map("ad_creatives")
+}
+
+model AdMetrics {
+  id          String   @id @default(cuid())
+  campaignId  String   @map("campaign_id")
+  adSetId     String?  @map("ad_set_id")
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  spend       Float    @default(0)
+  conversions Int      @default(0)
+  cpc         Float    @default(0)
+  cpm         Float    @default(0)
+  ctr         Float    @default(0)
+  roas        Float    @default(0)
+  collectedAt DateTime @default(now()) @map("collected_at")
+
+  campaign AdCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  adSet    AdSet?     @relation(fields: [adSetId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId])
+  @@index([adSetId])
+  @@index([collectedAt])
+  @@map("ad_metrics")
+}
+
+model AiLearningLog {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  agentType   String   @map("agent_type")
+  actionType  String   @map("action_type")
+  entityType  String   @map("entity_type")
+  entityId    String   @map("entity_id")
+  input       Json
+  output      Json
+  outcome     String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId])
+  @@index([agentType])
+  @@index([entityType, entityId])
+  @@map("ai_learning_logs")
+}
