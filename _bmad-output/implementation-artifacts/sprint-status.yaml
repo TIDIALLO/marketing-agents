@@ -17,13 +17,13 @@ development_status:
   epic-1-retrospective: optional
 
   # Epic 2: Brand Management & Integrations (Phase 0)
-  epic-2: backlog
-  2-1-organization-user-invitation: backlog
-  2-2-brand-product-management: backlog
-  2-3-social-account-oauth: backlog
-  2-4-ad-account-connection: backlog
-  2-5-white-label-branding: backlog
-  2-6-notification-preferences: backlog
+  epic-2: done
+  2-1-organization-user-invitation: done
+  2-2-brand-product-management: done
+  2-3-social-account-oauth: done
+  2-4-ad-account-connection: done
+  2-5-white-label-branding: done
+  2-6-notification-preferences: done
   epic-2-retrospective: optional
 
   # Epic 3: Content Creation AI Pipeline (Phase 1)

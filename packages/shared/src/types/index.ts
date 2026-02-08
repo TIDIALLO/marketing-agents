@@ -1,5 +1,7 @@
 export * from './api';
 export * from './auth';
+export * from './organizations';
+export * from './brands';
 export * from './content';
 export * from './ads';
 export * from './leads';

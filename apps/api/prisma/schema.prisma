@@ -7,32 +7,42 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model Tenant {
-  id        String   @id @default(cuid())
-  name      String?
-  plan      String   @default("free")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+// ─── Tenant & Auth ───────────────────────────────────────────
 
-  users PlatformUser[]
+model Tenant {
+  id             String   @id @default(cuid())
+  name           String?
+  plan           String   @default("free")
+  logo           String?
+  primaryColor   String?  @map("primary_color")
+  secondaryColor String?  @map("secondary_color")
+  customDomain   String?  @unique @map("custom_domain")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  users         PlatformUser[]
+  organizations Organization[]
+  brands        Brand[]
 
   @@map("tenants")
 }
 
 model PlatformUser {
-  id           String   @id @default(cuid())
-  tenantId     String   @map("tenant_id")
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  firstName    String   @map("first_name")
-  lastName     String   @map("last_name")
-  role         String   @default("owner")
-  refreshToken String?  @map("refresh_token")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id                      String   @id @default(cuid())
+  tenantId                String   @map("tenant_id")
+  email                   String   @unique
+  passwordHash            String   @map("password_hash")
+  firstName               String   @map("first_name")
+  lastName                String   @map("last_name")
+  role                    String   @default("owner")
+  refreshToken            String?  @map("refresh_token")
+  notificationPreferences Json?    @default("{\"slack\":true,\"email\":true,\"whatsapp\":false}") @map("notification_preferences")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
 
   tenant              Tenant               @relation(fields: [tenantId], references: [id])
   passwordResetTokens PasswordResetToken[]
+  organizationUsers   OrganizationUser[]
 
   @@index([tenantId])
   @@map("platform_users")
@@ -50,4 +60,133 @@ model PasswordResetToken {
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+// ─── Organization ────────────────────────────────────────────
+
+model Organization {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant      Tenant             @relation(fields: [tenantId], references: [id])
+  users       OrganizationUser[]
+  invitations UserInvitation[]
+  brands      Brand[]
+
+  @@index([tenantId])
+  @@map("organizations")
+}
+
+model OrganizationUser {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  userId         String   @map("user_id")
+  role           String   @default("editor")
+  joinedAt       DateTime @default(now()) @map("joined_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("organization_users")
+}
+
+model UserInvitation {
+  id             String    @id @default(cuid())
+  organizationId String    @map("organization_id")
+  email          String
+  role           String    @default("editor")
+  tokenHash      String    @unique @map("token_hash")
+  expiresAt      DateTime  @map("expires_at")
+  usedAt         DateTime? @map("used_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([email])
+  @@map("user_invitations")
+}
+
+// ─── Brand & Product ─────────────────────────────────────────
+
+model Brand {
+  id                String   @id @default(cuid())
+  tenantId          String   @map("tenant_id")
+  organizationId    String   @map("organization_id")
+  name              String
+  brandVoice        Json?    @map("brand_voice")
+  targetAudience    Json?    @map("target_audience")
+  contentGuidelines Json?    @map("content_guidelines")
+  visualGuidelines  Json?    @map("visual_guidelines")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  tenant         Tenant         @relation(fields: [tenantId], references: [id])
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  products       Product[]
+  socialAccounts SocialAccount[]
+
+  @@index([tenantId])
+  @@index([organizationId])
+  @@map("brands")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  brandId     String   @map("brand_id")
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([brandId])
+  @@map("products")
+}
+
+// ─── Social & Ad Accounts ────────────────────────────────────
+
+model SocialAccount {
+  id                    String    @id @default(cuid())
+  brandId               String    @map("brand_id")
+  platform              String
+  platformUserId        String?   @map("platform_user_id")
+  platformUsername      String?   @map("platform_username")
+  accessTokenEncrypted  String    @map("access_token_encrypted")
+  refreshTokenEncrypted String?   @map("refresh_token_encrypted")
+  tokenExpiresAt        DateTime? @map("token_expires_at")
+  status                String    @default("active")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  brand      Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  adAccounts AdAccount[]
+
+  @@unique([brandId, platform])
+  @@index([brandId])
+  @@map("social_accounts")
+}
+
+model AdAccount {
+  id                   String   @id @default(cuid())
+  socialAccountId      String   @map("social_account_id")
+  platform             String
+  platformAccountId    String   @map("platform_account_id")
+  name                 String?
+  credentialsEncrypted String?  @map("credentials_encrypted")
+  status               String   @default("active")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@index([socialAccountId])
+  @@map("ad_accounts")
 }

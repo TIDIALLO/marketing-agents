@@ -7,8 +7,11 @@ import { globalErrorHandler } from './middleware/errorHandler';
 import { authLimiter, apiLimiter } from './middleware/rateLimiter';
 import { authMiddleware } from './middleware/auth';
 import { tenantMiddleware } from './middleware/tenant';
-import { requireRole } from './middleware/requireRole';
 import { authRoutes } from './routes/auth';
+import { organizationRoutes } from './routes/organizations';
+import { brandRoutes } from './routes/brands';
+import { socialAccountRoutes } from './routes/social-accounts';
+import { settingsRoutes } from './routes/settings';
 
 const app = express();
 
@@ -49,16 +52,18 @@ app.get('/health', (_req, res) => {
 app.use('/api/auth', authLimiter);
 app.use('/api', apiLimiter);
 
-// 8. Routes
+// 8. Public routes
 app.use('/api/auth', authRoutes);
 
-// 9. Protected routes
+// 9. Protected routes (authMiddleware + tenantMiddleware applied to all)
+app.use('/api/organizations', authMiddleware, tenantMiddleware, organizationRoutes);
+app.use('/api/brands', authMiddleware, tenantMiddleware, brandRoutes);
+app.use('/api/social-accounts', authMiddleware, tenantMiddleware, socialAccountRoutes);
+app.use('/api/admin', authMiddleware, tenantMiddleware, settingsRoutes);
+app.use('/api/settings', authMiddleware, tenantMiddleware, settingsRoutes);
+
 app.get('/api/me', authMiddleware, tenantMiddleware, (req, res) => {
   res.json({ success: true, data: req.user });
-});
-
-app.get('/api/admin/test', authMiddleware, tenantMiddleware, requireRole('owner', 'admin'), (_req, res) => {
-  res.json({ success: true, data: { message: 'Accès admin confirmé' } });
 });
 
 // 10. 404 catch-all
