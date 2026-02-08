@@ -6,6 +6,23 @@ import { useAuth } from '@/providers/AuthProvider';
 import { useTranslations } from 'next-intl';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
+import { SocketProvider } from '@/providers/SocketProvider';
+import { ToastProvider } from '@/providers/ToastProvider';
+import { useNotificationEvents } from '@/hooks/use-notification-events';
+
+function DashboardContent({ children }: { children: React.ReactNode }) {
+  useNotificationEvents();
+
+  return (
+    <div className="flex h-screen overflow-hidden">
+      <Sidebar />
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <Header />
+        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+      </div>
+    </div>
+  );
+}
 
 export default function DashboardLayout({
   children,
@@ -38,12 +55,10 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Header />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
-      </div>
-    </div>
+    <ToastProvider>
+      <SocketProvider>
+        <DashboardContent>{children}</DashboardContent>
+      </SocketProvider>
+    </ToastProvider>
   );
 }
