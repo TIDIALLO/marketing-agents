@@ -131,6 +131,8 @@ model Brand {
   organization   Organization   @relation(fields: [organizationId], references: [id])
   products       Product[]
   socialAccounts SocialAccount[]
+  contentInputs  ContentInput[]
+  contentPieces  ContentPiece[]
 
   @@index([tenantId])
   @@index([organizationId])
@@ -189,4 +191,83 @@ model AdAccount {
 
   @@index([socialAccountId])
   @@map("ad_accounts")
+}
+
+// ─── Content Pipeline (Agent 1 — Content Flywheel) ───────────
+
+model ContentPillar {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  brandId     String   @map("brand_id")
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  contentInputs ContentInput[]
+
+  @@index([tenantId])
+  @@index([brandId])
+  @@map("content_pillars")
+}
+
+model ContentInput {
+  id                String    @id @default(cuid())
+  tenantId          String    @map("tenant_id")
+  brandId           String    @map("brand_id")
+  pillarId          String?   @map("pillar_id")
+  createdById       String    @map("created_by_id")
+  inputType         String    @default("text")
+  rawContent        String    @map("raw_content")
+  sourceUrl         String?   @map("source_url")
+  audioFileUrl      String?   @map("audio_file_url")
+  transcription     String?
+  aiSummary         String?   @map("ai_summary")
+  aiSuggestedTopics Json?     @map("ai_suggested_topics")
+  aiResearch        Json?     @map("ai_research")
+  status            String    @default("pending")
+  processedAt       DateTime? @map("processed_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  brand         Brand          @relation(fields: [brandId], references: [id])
+  pillar        ContentPillar? @relation(fields: [pillarId], references: [id])
+  contentPieces ContentPiece[]
+
+  @@index([tenantId])
+  @@index([brandId])
+  @@index([status])
+  @@map("content_inputs")
+}
+
+model ContentPiece {
+  id              String    @id @default(cuid())
+  tenantId        String    @map("tenant_id")
+  brandId         String    @map("brand_id")
+  contentInputId  String?   @map("content_input_id")
+  parentId        String?   @map("parent_id")
+  platform        String
+  title           String
+  body            String
+  hashtags        Json      @default("[]")
+  callToAction    String?   @map("call_to_action")
+  mediaUrl        String?   @map("media_url")
+  mediaPrompt     String?   @map("media_prompt")
+  status          String    @default("draft")
+  platformPostId  String?   @map("platform_post_id")
+  engagementScore Float     @default(0) @map("engagement_score")
+  publishedAt     DateTime? @map("published_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  brand        Brand         @relation(fields: [brandId], references: [id])
+  contentInput ContentInput? @relation(fields: [contentInputId], references: [id])
+  parent       ContentPiece? @relation("ContentPieceVariants", fields: [parentId], references: [id])
+  variants     ContentPiece[] @relation("ContentPieceVariants")
+
+  @@index([tenantId])
+  @@index([brandId])
+  @@index([contentInputId])
+  @@index([status])
+  @@map("content_pieces")
 }

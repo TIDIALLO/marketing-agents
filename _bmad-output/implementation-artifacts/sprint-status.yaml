@@ -27,12 +27,12 @@ development_status:
   epic-2-retrospective: optional
 
   # Epic 3: Content Creation AI Pipeline (Phase 1)
-  epic-3: backlog
-  3-1-content-input-submission: backlog
-  3-2-audio-input-whisper: backlog
-  3-3-ai-content-research: backlog
-  3-4-ai-content-generation-claude: backlog
-  3-5-dalle-visual-generation-minio: backlog
+  epic-3: done
+  3-1-content-input-submission: done
+  3-2-audio-input-whisper: done
+  3-3-ai-content-research: done
+  3-4-ai-content-generation-claude: done
+  3-5-dalle-visual-generation-minio: done
   epic-3-retrospective: optional
 
   # Epic 4: Content Approval & Multi-Platform Publishing (Phase 1)

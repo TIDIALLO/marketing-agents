@@ -12,6 +12,7 @@ import { organizationRoutes } from './routes/organizations';
 import { brandRoutes } from './routes/brands';
 import { socialAccountRoutes } from './routes/social-accounts';
 import { settingsRoutes } from './routes/settings';
+import { contentRoutes } from './routes/content';
 
 const app = express();
 
@@ -59,6 +60,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/organizations', authMiddleware, tenantMiddleware, organizationRoutes);
 app.use('/api/brands', authMiddleware, tenantMiddleware, brandRoutes);
 app.use('/api/social-accounts', authMiddleware, tenantMiddleware, socialAccountRoutes);
+app.use('/api/content', authMiddleware, tenantMiddleware, contentRoutes);
 app.use('/api/admin', authMiddleware, tenantMiddleware, settingsRoutes);
 app.use('/api/settings', authMiddleware, tenantMiddleware, settingsRoutes);
 
