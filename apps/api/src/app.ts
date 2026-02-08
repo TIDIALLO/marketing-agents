@@ -5,6 +5,9 @@ import cookieParser from 'cookie-parser';
 import { correlationIdMiddleware } from './middleware/correlationId';
 import { globalErrorHandler } from './middleware/errorHandler';
 import { authLimiter, apiLimiter } from './middleware/rateLimiter';
+import { authMiddleware } from './middleware/auth';
+import { tenantMiddleware } from './middleware/tenant';
+import { requireRole } from './middleware/requireRole';
 import { authRoutes } from './routes/auth';
 
 const app = express();
@@ -48,9 +51,17 @@ app.use('/api', apiLimiter);
 
 // 8. Routes
 app.use('/api/auth', authRoutes);
-// app.use('/api', authMiddleware, tenantMiddleware, routes);
 
-// 9. 404 catch-all
+// 9. Protected routes
+app.get('/api/me', authMiddleware, tenantMiddleware, (req, res) => {
+  res.json({ success: true, data: req.user });
+});
+
+app.get('/api/admin/test', authMiddleware, tenantMiddleware, requireRole('owner', 'admin'), (_req, res) => {
+  res.json({ success: true, data: { message: 'Accès admin confirmé' } });
+});
+
+// 10. 404 catch-all
 app.use((_req, res) => {
   res.status(404).json({
     success: false,
@@ -58,7 +69,7 @@ app.use((_req, res) => {
   });
 });
 
-// 10. Error handler (always last)
+// 11. Error handler (always last)
 app.use(globalErrorHandler);
 
 export { app };
