@@ -266,6 +266,8 @@ model ContentPiece {
   parent       ContentPiece? @relation("ContentPieceVariants", fields: [parentId], references: [id])
   variants     ContentPiece[] @relation("ContentPieceVariants")
   schedules    ContentSchedule[]
+  metrics      ContentMetrics[]
+  signals      ContentSignal[]
 
   @@index([tenantId])
   @@index([brandId])
@@ -319,4 +321,44 @@ model ContentSchedule {
   @@index([contentPieceId])
   @@index([socialAccountId])
   @@map("content_schedules")
+}
+
+// ─── Content Performance (Agent 1 — Analytics) ──────────────
+
+model ContentMetrics {
+  id              String   @id @default(cuid())
+  contentPieceId  String   @map("content_piece_id")
+  platform        String
+  impressions     Int      @default(0)
+  reach           Int      @default(0)
+  engagements     Int      @default(0)
+  likes           Int      @default(0)
+  comments        Int      @default(0)
+  shares          Int      @default(0)
+  saves           Int      @default(0)
+  clicks          Int      @default(0)
+  videoViews      Int      @default(0) @map("video_views")
+  engagementRate  Float    @default(0) @map("engagement_rate")
+  collectedAt     DateTime @default(now()) @map("collected_at")
+
+  contentPiece ContentPiece @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
+
+  @@index([contentPieceId])
+  @@index([collectedAt])
+  @@map("content_metrics")
+}
+
+model ContentSignal {
+  id                String   @id @default(cuid())
+  contentPieceId    String   @map("content_piece_id")
+  signalType        String   @map("signal_type")
+  signalStrength    Float    @map("signal_strength")
+  aiRecommendation  String   @map("ai_recommendation")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  contentPiece ContentPiece @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
+
+  @@index([contentPieceId])
+  @@index([signalType])
+  @@map("content_signals")
 }
