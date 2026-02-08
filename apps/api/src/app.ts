@@ -4,15 +4,26 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { correlationIdMiddleware } from './middleware/correlationId';
 import { globalErrorHandler } from './middleware/errorHandler';
+import { authLimiter, apiLimiter } from './middleware/rateLimiter';
+import { authRoutes } from './routes/auth';
 
 const app = express();
+
+const allowedOrigins = process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000'];
 
 // 1. Security headers
 app.use(helmet());
 
-// 2. CORS
+// 2. CORS — reject unauthorized origins with 403
 app.use(cors({
-  origin: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000'],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (curl, server-to-server)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS non autorisé'));
+  },
   credentials: true,
 }));
 
@@ -26,16 +37,28 @@ app.use(express.urlencoded({ extended: true }));
 // 5. Correlation ID
 app.use(correlationIdMiddleware);
 
-// 6. Health check (before auth)
+// 6. Health check (before auth & rate limiting)
 app.get('/health', (_req, res) => {
   res.json({ success: true, data: { status: 'ok' } });
 });
 
-// 7. Routes will be added in future stories
-// app.use('/api/auth', authRoutes);
+// 7. Rate limiting
+app.use('/api/auth', authLimiter);
+app.use('/api', apiLimiter);
+
+// 8. Routes
+app.use('/api/auth', authRoutes);
 // app.use('/api', authMiddleware, tenantMiddleware, routes);
 
-// 8. Error handler (always last)
+// 9. 404 catch-all
+app.use((_req, res) => {
+  res.status(404).json({
+    success: false,
+    error: { code: 'NOT_FOUND', message: 'Route introuvable' },
+  });
+});
+
+// 10. Error handler (always last)
 app.use(globalErrorHandler);
 
 export { app };
