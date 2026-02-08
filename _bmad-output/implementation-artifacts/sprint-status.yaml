@@ -96,13 +96,13 @@ development_status:
   epic-9-retrospective: optional
 
   # Epic 10: Inter-Agent Communication & System Utilities (Phase 3)
-  epic-10: backlog
-  10-1-oauth-token-refresh: backlog
-  10-2-agent-messages-bus-dlq: backlog
-  10-3-content-amplification-feedback: backlog
-  10-4-amplification-leads-feedback: backlog
-  10-5-leads-content-feedback: backlog
-  10-6-ai-learning-loop: backlog
-  10-7-ads-content-performance-feedback: backlog
-  10-8-n8n-error-handling-monitoring: backlog
+  epic-10: done
+  10-1-oauth-token-refresh: done
+  10-2-agent-messages-bus-dlq: done
+  10-3-content-amplification-feedback: done
+  10-4-amplification-leads-feedback: done
+  10-5-leads-content-feedback: done
+  10-6-ai-learning-loop: done
+  10-7-ads-content-performance-feedback: done
+  10-8-n8n-error-handling-monitoring: done
   epic-10-retrospective: optional

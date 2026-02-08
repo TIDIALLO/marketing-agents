@@ -19,6 +19,7 @@ import { leadRoutes } from './routes/leads';
 import { webhookRoutes } from './routes/webhooks';
 import { nurturingRoutes } from './routes/nurturing';
 import { advertisingRoutes } from './routes/advertising';
+import { systemRoutes } from './routes/system';
 
 const app = express();
 
@@ -74,6 +75,7 @@ app.use('/api/analytics', authMiddleware, tenantMiddleware, analyticsRoutes);
 app.use('/api/leads', authMiddleware, tenantMiddleware, leadRoutes);
 app.use('/api/leads/nurturing', authMiddleware, tenantMiddleware, nurturingRoutes);
 app.use('/api/advertising', authMiddleware, tenantMiddleware, advertisingRoutes);
+app.use('/api/system', authMiddleware, tenantMiddleware, systemRoutes);
 app.use('/api/admin', authMiddleware, tenantMiddleware, settingsRoutes);
 app.use('/api/settings', authMiddleware, tenantMiddleware, settingsRoutes);
 
