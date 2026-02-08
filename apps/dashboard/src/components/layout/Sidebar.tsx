@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   LayoutDashboard,
   FileText,
@@ -17,20 +18,21 @@ import {
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 
-const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Contenu', href: '/content', icon: FileText },
-  { name: 'Publicités', href: '/ads', icon: Megaphone },
-  { name: 'Leads', href: '/leads', icon: Users },
-  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-  { name: 'Approbations', href: '/approvals', icon: CheckCircle },
-  { name: 'Marques', href: '/brands', icon: Building2 },
-  { name: 'Paramètres', href: '/settings', icon: Settings },
-];
+const navigationItems = [
+  { key: 'dashboard', href: '/', icon: LayoutDashboard },
+  { key: 'content', href: '/content', icon: FileText },
+  { key: 'ads', href: '/ads', icon: Megaphone },
+  { key: 'leads', href: '/leads', icon: Users },
+  { key: 'analytics', href: '/analytics', icon: BarChart3 },
+  { key: 'approvals', href: '/approvals', icon: CheckCircle },
+  { key: 'brands', href: '/brands', icon: Building2 },
+  { key: 'settings', href: '/settings', icon: Settings },
+] as const;
 
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const t = useTranslations('nav');
 
   return (
     <aside
@@ -62,7 +64,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 p-2">
-        {navigation.map((item) => {
+        {navigationItems.map((item) => {
           const isActive =
             item.href === '/'
               ? pathname === '/'
@@ -78,10 +80,10 @@ export function Sidebar() {
                   ? 'bg-primary/10 text-primary'
                   : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
               )}
-              title={collapsed ? item.name : undefined}
+              title={collapsed ? t(item.key) : undefined}
             >
               <item.icon className="h-5 w-5 shrink-0" />
-              {!collapsed && <span>{item.name}</span>}
+              {!collapsed && <span>{t(item.key)}</span>}
             </Link>
           );
         })}
@@ -91,7 +93,9 @@ export function Sidebar() {
         {!collapsed && (
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-green-500" />
-            <span className="text-xs text-muted-foreground">3 agents actifs</span>
+            <span className="text-xs text-muted-foreground">
+              {t('agentsActive', { count: 3 })}
+            </span>
           </div>
         )}
       </div>

@@ -4,6 +4,7 @@ import { validate } from '../middleware/validate';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { requirePermission } from '../middleware/requireRole';
 import * as approvalService from '../services/approval.service';
+import * as reportingService from '../services/reporting.service';
 
 // ─── Schemas ─────────────────────────────────────────────────
 
@@ -69,12 +70,12 @@ protectedRouter.post(
   }),
 );
 
-// GET /api/approval/queue
+// GET /api/approval/queue — enriched with entity previews (Story 9.4)
 protectedRouter.get(
   '/queue',
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
-    const approvals = await approvalService.listApprovals(req.user!.tenantId, {
+    const approvals = await reportingService.getApprovalQueue(req.user!.tenantId, {
       status: req.query.status as string | undefined,
       entityType: req.query.entityType as string | undefined,
     });

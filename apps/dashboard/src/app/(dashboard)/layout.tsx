@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/providers/AuthProvider';
+import { useTranslations } from 'next-intl';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 
@@ -13,6 +14,7 @@ export default function DashboardLayout({
 }) {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const t = useTranslations('common');
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -25,7 +27,7 @@ export default function DashboardLayout({
       <div className="flex min-h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground">Chargement...</p>
+          <p className="text-sm text-muted-foreground">{t('loading')}</p>
         </div>
       </div>
     );

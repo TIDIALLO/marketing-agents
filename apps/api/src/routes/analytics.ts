@@ -3,8 +3,44 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { requirePermission } from '../middleware/requireRole';
 import * as metricsService from '../services/metrics.service';
 import * as analyticsService from '../services/analytics.service';
+import * as reportingService from '../services/reporting.service';
 
 const router = Router();
+
+// ─── KPI Streaming SSE (Story 9.1) ──────────────────────────────
+
+// GET /api/analytics/stream — SSE endpoint refreshing every 30s
+router.get(
+  '/stream',
+  requirePermission('content:view'),
+  (req, res) => {
+    const tenantId = req.user!.tenantId;
+
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no', // Disable nginx buffering
+    });
+
+    // Send initial data immediately
+    const sendKPIs = async () => {
+      try {
+        const data = await reportingService.getStreamingKPIs(tenantId);
+        res.write(`data: ${JSON.stringify(data)}\n\n`);
+      } catch (err) {
+        res.write(`event: error\ndata: ${JSON.stringify({ message: 'KPI fetch failed' })}\n\n`);
+      }
+    };
+
+    sendKPIs();
+    const interval = setInterval(sendKPIs, 30_000);
+
+    req.on('close', () => {
+      clearInterval(interval);
+    });
+  },
+);
 
 // ─── Dashboard (Story 5.5) ──────────────────────────────────
 
@@ -83,7 +119,7 @@ router.get(
   }),
 );
 
-// ─── Scheduler Triggers (called by n8n MKT-108, MKT-109) ────
+// ─── Scheduler Triggers ──────────────────────────────────────
 
 // POST /api/analytics/collect-metrics — trigger metrics collection (MKT-108)
 router.post(
@@ -102,6 +138,28 @@ router.post(
   asyncHandler(async (_req, res) => {
     const signals = await metricsService.detectWinningContent();
     res.json({ success: true, data: signals });
+  }),
+);
+
+// POST /api/analytics/daily-aggregate — trigger daily aggregation (MKT-402)
+router.post(
+  '/daily-aggregate',
+  requirePermission('content:approve'),
+  asyncHandler(async (req, res) => {
+    const result = await reportingService.aggregateDailyAnalytics(
+      req.query.date as string | undefined,
+    );
+    res.json({ success: true, data: result });
+  }),
+);
+
+// POST /api/analytics/weekly-report — trigger weekly AI report (MKT-403)
+router.post(
+  '/weekly-report',
+  requirePermission('content:approve'),
+  asyncHandler(async (req, res) => {
+    const result = await reportingService.generateWeeklyReport(req.user!.tenantId);
+    res.json({ success: true, data: result });
   }),
 );
 

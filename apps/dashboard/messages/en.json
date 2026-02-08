@@ -1,0 +1,113 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "filter": "Filter",
+    "back": "Back",
+    "confirm": "Confirm",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No",
+    "noResults": "No results",
+    "error": "Error",
+    "success": "Success"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "content": "Content",
+    "ads": "Ads",
+    "leads": "Leads",
+    "analytics": "Analytics",
+    "approvals": "Approvals",
+    "brands": "Brands",
+    "settings": "Settings",
+    "agentsActive": "{count} active agents"
+  },
+  "header": {
+    "notifications": "Notifications",
+    "toggleTheme": "Toggle theme",
+    "logout": "Logout",
+    "language": "Language"
+  },
+  "dashboard": {
+    "welcome": "Welcome, {firstName}!",
+    "subtitle": "Here's an overview of your marketing activity.",
+    "contentsPublished": "Content published",
+    "leadsGenerated": "Leads generated",
+    "avgROAS": "Average ROAS",
+    "engagementRate": "Engagement rate",
+    "aiAgents": "AI Agents",
+    "pending": "Pending"
+  },
+  "agents": {
+    "contentFlywheel": "Content Flywheel",
+    "contentFlywheelDesc": "AI content creation and publishing",
+    "amplificationEngine": "Amplification Engine",
+    "amplificationEngineDesc": "Automated ad campaigns",
+    "opportunityHunter": "Opportunity Hunter",
+    "opportunityHunterDesc": "Lead capture and qualification"
+  },
+  "approvals": {
+    "title": "Approval Queue",
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "approve": "Approve",
+    "reject": "Reject",
+    "requestChanges": "Request changes",
+    "priority": "Priority",
+    "waitingSince": "Waiting for {hours}h",
+    "contentPiece": "Content",
+    "adCampaign": "Ad campaign"
+  },
+  "analytics": {
+    "title": "Analytics",
+    "impressions": "Impressions",
+    "engagements": "Engagements",
+    "clicks": "Clicks",
+    "shares": "Shares",
+    "topPosts": "Top posts",
+    "trends": "Trends",
+    "signals": "Signals",
+    "weeklyReport": "Weekly report"
+  },
+  "content": {
+    "title": "Content management",
+    "draft": "Draft",
+    "pendingApproval": "Pending approval",
+    "approved": "Approved",
+    "published": "Published",
+    "scheduled": "Scheduled"
+  },
+  "leads": {
+    "title": "Lead pipeline",
+    "new": "New",
+    "contacted": "Contacted",
+    "qualified": "Qualified",
+    "converted": "Converted",
+    "hot": "Hot",
+    "warm": "Warm",
+    "cold": "Cold",
+    "score": "Score"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "languageDesc": "Choose your interface language",
+    "french": "Français",
+    "english": "English",
+    "theme": "Theme",
+    "notifications": "Notifications"
+  },
+  "formats": {
+    "date": "{date, date, medium}",
+    "number": "{value, number}",
+    "currency": "{value, number, ::currency/USD}",
+    "percent": "{value, number, ::percent}"
+  }
+}

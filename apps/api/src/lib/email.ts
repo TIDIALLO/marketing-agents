@@ -121,6 +121,24 @@ export async function sendEscalationEmail(
   );
 }
 
+// ─── Weekly Report Email (Story 9.3) ─────────────────────────
+
+export async function sendWeeklyReportEmail(
+  to: string,
+  details: { period: string; report: string },
+): Promise<void> {
+  await sendEmail(
+    to,
+    `Rapport hebdomadaire marketing (${details.period}) — Synap6ia`,
+    `<div style="font-family:sans-serif;max-width:700px;margin:0 auto">
+<h2 style="color:#6366f1">Rapport Hebdomadaire Marketing</h2>
+<p style="color:#888">Période : ${details.period}</p>
+<div style="white-space:pre-wrap;line-height:1.6;padding:16px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb">${details.report}</div>
+<p style="color:#888;font-size:12px;margin-top:24px">Ce rapport a été généré automatiquement par Synap6ia Marketing AI.</p>
+</div>`,
+  );
+}
+
 // ─── Lead Proposal Email (Story 6.4) ─────────────────────────
 
 export async function sendLeadProposalEmail(

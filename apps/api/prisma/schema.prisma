@@ -363,6 +363,29 @@ model ContentSignal {
   @@map("content_signals")
 }
 
+// ─── Daily Analytics Aggregation (Story 9.2) ────────────────────
+
+model DailyAnalytics {
+  id                String   @id @default(cuid())
+  tenantId          String   @map("tenant_id")
+  organizationId    String   @map("organization_id")
+  date              DateTime @db.Date
+  contentsPublished Int      @default(0) @map("contents_published")
+  impressions       Int      @default(0)
+  engagements       Int      @default(0)
+  avgEngagementRate Float    @default(0) @map("avg_engagement_rate")
+  adSpend           Float    @default(0) @map("ad_spend")
+  leadsGenerated    Int      @default(0) @map("leads_generated")
+  leadsQualified    Int      @default(0) @map("leads_qualified")
+  conversions       Int      @default(0)
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@unique([organizationId, date])
+  @@index([tenantId])
+  @@index([date])
+  @@map("daily_analytics")
+}
+
 // ─── Lead Capture & Qualification (Agent 3 — Opportunity Hunter) ─
 
 model Lead {

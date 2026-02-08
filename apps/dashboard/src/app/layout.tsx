@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { ThemeProvider } from '@/providers/ThemeProvider';
+import { IntlProvider } from '@/providers/IntlProvider';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -17,7 +18,9 @@ export default function RootLayout({
     <html lang="fr" suppressHydrationWarning>
       <body className="min-h-screen antialiased">
         <ThemeProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <IntlProvider>
+            <AuthProvider>{children}</AuthProvider>
+          </IntlProvider>
         </ThemeProvider>
       </body>
     </html>
