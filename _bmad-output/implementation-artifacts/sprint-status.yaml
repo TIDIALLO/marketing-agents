@@ -56,13 +56,13 @@ development_status:
   epic-5-retrospective: optional
 
   # Epic 6: Lead Capture & AI Qualification (Phase 2)
-  epic-6: backlog
-  6-1-lead-ingestion-multi-source: backlog
-  6-2-lead-deduplication-merge: backlog
-  6-3-ai-lead-scoring-qualification: backlog
-  6-4-hot-lead-auto-booking: backlog
-  6-5-ai-sales-briefing: backlog
-  6-6-lead-pipeline-funnel-dashboard: backlog
+  epic-6: done
+  6-1-lead-ingestion-multi-source: done
+  6-2-lead-deduplication-merge: done
+  6-3-ai-lead-scoring-qualification: done
+  6-4-hot-lead-auto-booking: done
+  6-5-ai-sales-briefing: done
+  6-6-lead-pipeline-funnel-dashboard: done
   epic-6-retrospective: optional
 
   # Epic 7: Lead Nurturing & Conversion (Phase 2)

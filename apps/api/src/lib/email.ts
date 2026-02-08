@@ -80,3 +80,21 @@ export async function sendApprovalReminderEmail(
 <p><a href="${details.dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#6366f1;color:#fff;text-decoration:none;border-radius:6px">Voir sur le dashboard</a></p>`,
   );
 }
+
+// ─── Lead Emails (Stories 6.4) ───────────────────────────────
+
+export async function sendLeadProposalEmail(
+  to: string,
+  details: {
+    firstName: string;
+    proposalMessage: string;
+    bookingId: string;
+  },
+): Promise<void> {
+  await sendEmail(
+    to,
+    `${details.firstName}, prenons rendez-vous ! — Synap6ia`,
+    `<p>${details.proposalMessage.replace(/\n/g, '<br>')}</p>
+<p style="color:#888;font-size:12px">Ref: ${details.bookingId}</p>`,
+  );
+}

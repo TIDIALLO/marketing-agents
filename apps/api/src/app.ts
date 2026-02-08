@@ -15,6 +15,8 @@ import { settingsRoutes } from './routes/settings';
 import { contentRoutes } from './routes/content';
 import { approvalPublicRoutes, approvalRoutes } from './routes/approval';
 import { analyticsRoutes } from './routes/analytics';
+import { leadRoutes } from './routes/leads';
+import { webhookRoutes } from './routes/webhooks';
 
 const app = express();
 
@@ -58,6 +60,7 @@ app.use('/api', apiLimiter);
 // 8. Public routes
 app.use('/api/auth', authRoutes);
 app.use('/api/approval', approvalPublicRoutes);
+app.use('/api/webhooks', webhookRoutes);
 
 // 9. Protected routes (authMiddleware + tenantMiddleware applied to all)
 app.use('/api/organizations', authMiddleware, tenantMiddleware, organizationRoutes);
@@ -66,6 +69,7 @@ app.use('/api/social-accounts', authMiddleware, tenantMiddleware, socialAccountR
 app.use('/api/content', authMiddleware, tenantMiddleware, contentRoutes);
 app.use('/api/approval', authMiddleware, tenantMiddleware, approvalRoutes);
 app.use('/api/analytics', authMiddleware, tenantMiddleware, analyticsRoutes);
+app.use('/api/leads', authMiddleware, tenantMiddleware, leadRoutes);
 app.use('/api/admin', authMiddleware, tenantMiddleware, settingsRoutes);
 app.use('/api/settings', authMiddleware, tenantMiddleware, settingsRoutes);
 
