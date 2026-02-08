@@ -1,9 +1,10 @@
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import bcrypt from 'bcrypt';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../lib/jwt';
 import { AppError } from '../lib/errors';
+import { sendPasswordResetEmail } from '../lib/email';
 import type { JwtPayload, Role } from '@synap6ia/shared';
 
 const BCRYPT_ROUNDS = 12;
@@ -157,4 +158,64 @@ export async function logout(userId: string) {
     where: { id: userId },
     data: { refreshToken: null },
   });
+}
+
+const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
+const APP_URL = process.env.APP_URL || 'http://localhost:3000';
+
+function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+export async function forgotPassword(email: string): Promise<void> {
+  const user = await prisma.platformUser.findUnique({ where: { email } });
+  if (!user) return; // No email enumeration
+
+  const plainToken = randomBytes(32).toString('hex');
+  const tokenHash = hashToken(plainToken);
+
+  await prisma.passwordResetToken.create({
+    data: {
+      userId: user.id,
+      tokenHash,
+      expiresAt: new Date(Date.now() + RESET_TOKEN_EXPIRY_MS),
+    },
+  });
+
+  const resetUrl = `${APP_URL}/reset-password?token=${plainToken}`;
+  await sendPasswordResetEmail(user.email, resetUrl);
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  const tokenHash = hashToken(token);
+
+  const resetToken = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash },
+    include: { user: true },
+  });
+
+  if (!resetToken) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'Token de réinitialisation invalide');
+  }
+
+  if (resetToken.expiresAt < new Date()) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'Token de réinitialisation expiré');
+  }
+
+  if (resetToken.usedAt) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'Token de réinitialisation déjà utilisé');
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+
+  await prisma.$transaction([
+    prisma.platformUser.update({
+      where: { id: resetToken.userId },
+      data: { passwordHash, refreshToken: null },
+    }),
+    prisma.passwordResetToken.update({
+      where: { id: resetToken.id },
+      data: { usedAt: new Date() },
+    }),
+  ]);
 }

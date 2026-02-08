@@ -18,6 +18,15 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Mot de passe requis'),
 });
 
+const forgotPasswordSchema = z.object({
+  email: z.string().trim().toLowerCase().email('Email invalide'),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Token requis'),
+  newPassword: z.string().min(8, 'Le mot de passe doit contenir au moins 8 caractères').max(128, 'Le mot de passe ne doit pas dépasser 128 caractères'),
+});
+
 const router = Router();
 
 router.post(
@@ -67,6 +76,24 @@ router.post(
     }
     clearRefreshCookie(res);
     res.json({ success: true, data: { message: 'Déconnexion réussie' } });
+  })
+);
+
+router.post(
+  '/forgot-password',
+  validate(forgotPasswordSchema),
+  asyncHandler(async (req, res) => {
+    await authService.forgotPassword(req.body.email);
+    res.json({ success: true, data: { message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé' } });
+  })
+);
+
+router.post(
+  '/reset-password',
+  validate(resetPasswordSchema),
+  asyncHandler(async (req, res) => {
+    await authService.resetPassword(req.body.token, req.body.newPassword);
+    res.json({ success: true, data: { message: 'Mot de passe réinitialisé avec succès' } });
   })
 );
 
