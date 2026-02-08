@@ -168,8 +168,9 @@ model SocialAccount {
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
-  brand      Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  brand      Brand              @relation(fields: [brandId], references: [id], onDelete: Cascade)
   adAccounts AdAccount[]
+  schedules  ContentSchedule[]
 
   @@unique([brandId, platform])
   @@index([brandId])
@@ -264,10 +265,58 @@ model ContentPiece {
   contentInput ContentInput? @relation(fields: [contentInputId], references: [id])
   parent       ContentPiece? @relation("ContentPieceVariants", fields: [parentId], references: [id])
   variants     ContentPiece[] @relation("ContentPieceVariants")
+  schedules    ContentSchedule[]
 
   @@index([tenantId])
   @@index([brandId])
   @@index([contentInputId])
   @@index([status])
   @@map("content_pieces")
+}
+
+// ─── Approval & Publishing ───────────────────────────────────
+
+model ApprovalQueue {
+  id            String    @id @default(cuid())
+  tenantId      String    @map("tenant_id")
+  entityType    String    @map("entity_type")
+  entityId      String    @map("entity_id")
+  assigneeId    String?   @map("assignee_id")
+  status        String    @default("pending")
+  priority      String    @default("normal")
+  actionToken   String?   @unique @map("action_token")
+  tokenExpiresAt DateTime? @map("token_expires_at")
+  reminderCount Int       @default(0) @map("reminder_count")
+  resolvedAt    DateTime? @map("resolved_at")
+  resolvedBy    String?   @map("resolved_by")
+  resolution    String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@index([entityType, entityId])
+  @@index([status])
+  @@index([assigneeId])
+  @@map("approval_queue")
+}
+
+model ContentSchedule {
+  id              String    @id @default(cuid())
+  contentPieceId  String    @map("content_piece_id")
+  socialAccountId String    @map("social_account_id")
+  scheduledAt     DateTime  @map("scheduled_at")
+  publishedAt     DateTime? @map("published_at")
+  status          String    @default("scheduled")
+  retryCount      Int       @default(0) @map("retry_count")
+  lastError       String?   @map("last_error")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  contentPiece  ContentPiece  @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id])
+
+  @@index([status, scheduledAt])
+  @@index([contentPieceId])
+  @@index([socialAccountId])
+  @@map("content_schedules")
 }

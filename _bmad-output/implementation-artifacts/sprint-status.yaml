@@ -36,13 +36,13 @@ development_status:
   epic-3-retrospective: optional
 
   # Epic 4: Content Approval & Multi-Platform Publishing (Phase 1)
-  epic-4: backlog
-  4-1-approval-circuit-slack: backlog
-  4-2-email-approval-notifications: backlog
-  4-3-approval-reminder-system: backlog
-  4-4-multi-platform-adaptation: backlog
-  4-5-automated-publishing: backlog
-  4-6-editorial-calendar-dashboard: backlog
+  epic-4: done
+  4-1-approval-circuit-slack: done
+  4-2-email-approval-notifications: done
+  4-3-approval-reminder-system: done
+  4-4-multi-platform-adaptation: done
+  4-5-automated-publishing: done
+  4-6-editorial-calendar-dashboard: done
   epic-4-retrospective: optional
 
   # Epic 5: Content Performance & Dashboard (Phase 1)

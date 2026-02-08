@@ -13,6 +13,7 @@ import { brandRoutes } from './routes/brands';
 import { socialAccountRoutes } from './routes/social-accounts';
 import { settingsRoutes } from './routes/settings';
 import { contentRoutes } from './routes/content';
+import { approvalPublicRoutes, approvalRoutes } from './routes/approval';
 
 const app = express();
 
@@ -55,12 +56,14 @@ app.use('/api', apiLimiter);
 
 // 8. Public routes
 app.use('/api/auth', authRoutes);
+app.use('/api/approval', approvalPublicRoutes);
 
 // 9. Protected routes (authMiddleware + tenantMiddleware applied to all)
 app.use('/api/organizations', authMiddleware, tenantMiddleware, organizationRoutes);
 app.use('/api/brands', authMiddleware, tenantMiddleware, brandRoutes);
 app.use('/api/social-accounts', authMiddleware, tenantMiddleware, socialAccountRoutes);
 app.use('/api/content', authMiddleware, tenantMiddleware, contentRoutes);
+app.use('/api/approval', authMiddleware, tenantMiddleware, approvalRoutes);
 app.use('/api/admin', authMiddleware, tenantMiddleware, settingsRoutes);
 app.use('/api/settings', authMiddleware, tenantMiddleware, settingsRoutes);
 

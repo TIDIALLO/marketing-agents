@@ -4,6 +4,7 @@ import { validate } from '../middleware/validate';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { requirePermission } from '../middleware/requireRole';
 import * as contentService from '../services/content.service';
+import * as publishingService from '../services/publishing.service';
 
 // ─── Schemas ─────────────────────────────────────────────────
 
@@ -38,6 +39,15 @@ const updateStatusSchema = z.object({
   status: z.enum(['draft', 'review', 'approved', 'scheduled', 'published', 'failed'], {
     errorMap: () => ({ message: 'Statut invalide' }),
   }),
+});
+
+const scheduleSchema = z.object({
+  socialAccountId: z.string().min(1, 'Compte social requis'),
+  scheduledAt: z.string().datetime({ message: 'Date invalide (ISO 8601)' }),
+});
+
+const rescheduleSchema = z.object({
+  scheduledAt: z.string().datetime({ message: 'Date invalide (ISO 8601)' }),
 });
 
 const router = Router();
@@ -228,6 +238,84 @@ router.post<{ id: string }>(
   requirePermission('content:create'),
   asyncHandler(async (req, res) => {
     const piece = await contentService.generateVisual(req.user!.tenantId, req.params.id);
+    res.json({ success: true, data: piece });
+  }),
+);
+
+// POST /api/content/pieces/:id/adapt — adapt to all platforms (Story 4.4)
+router.post<{ id: string }>(
+  '/pieces/:id/adapt',
+  requirePermission('content:create'),
+  asyncHandler(async (req, res) => {
+    const result = await publishingService.adaptToAllPlatforms(req.user!.tenantId, req.params.id);
+    res.json({ success: true, data: result });
+  }),
+);
+
+// POST /api/content/pieces/:id/schedule — manual schedule (Story 4.5)
+router.post<{ id: string }>(
+  '/pieces/:id/schedule',
+  requirePermission('content:approve'),
+  validate(scheduleSchema),
+  asyncHandler(async (req, res) => {
+    const schedule = await publishingService.scheduleContent(
+      req.user!.tenantId,
+      req.params.id,
+      req.body.socialAccountId,
+      new Date(req.body.scheduledAt),
+    );
+    res.status(201).json({ success: true, data: schedule });
+  }),
+);
+
+// ─── Content Schedules (Stories 4.5, 4.6) ────────────────────
+
+// POST /api/content/schedules/publish-due — batch publish (MKT-107 scheduler)
+router.post(
+  '/schedules/publish-due',
+  requirePermission('content:approve'),
+  asyncHandler(async (_req, res) => {
+    const results = await publishingService.publishScheduledContent();
+    res.json({ success: true, data: results });
+  }),
+);
+
+// GET /api/content/schedules — list (Story 4.6 calendar data)
+router.get(
+  '/schedules',
+  requirePermission('content:view'),
+  asyncHandler(async (req, res) => {
+    const schedules = await publishingService.listSchedules(req.user!.tenantId, {
+      from: req.query.from ? new Date(req.query.from as string) : undefined,
+      to: req.query.to ? new Date(req.query.to as string) : undefined,
+      brandId: req.query.brandId as string | undefined,
+      status: req.query.status as string | undefined,
+    });
+    res.json({ success: true, data: schedules });
+  }),
+);
+
+// PUT /api/content/schedules/:id — reschedule (Story 4.6 drag-and-drop)
+router.put<{ id: string }>(
+  '/schedules/:id',
+  requirePermission('content:approve'),
+  validate(rescheduleSchema),
+  asyncHandler(async (req, res) => {
+    const schedule = await publishingService.updateSchedule(
+      req.user!.tenantId,
+      req.params.id,
+      { scheduledAt: new Date(req.body.scheduledAt) },
+    );
+    res.json({ success: true, data: schedule });
+  }),
+);
+
+// POST /api/content/schedules/:id/publish — manual single publish (Story 4.5)
+router.post<{ id: string }>(
+  '/schedules/:id/publish',
+  requirePermission('content:approve'),
+  asyncHandler(async (req, res) => {
+    const piece = await publishingService.publishSingle(req.user!.tenantId, req.params.id);
     res.json({ success: true, data: piece });
   }),
 );
