@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { Search, LayoutGrid, List } from 'lucide-react';
+import { Search, LayoutGrid, List, Kanban } from 'lucide-react';
 import { useApi } from '@/hooks/use-api';
 import { usePagination } from '@/hooks/use-pagination';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -137,21 +137,29 @@ export default function LeadsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
-        <div className="flex gap-1 rounded-md border p-1">
-          <Button
-            variant={view === 'funnel' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setView('funnel')}
-          >
-            <LayoutGrid className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={view === 'table' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setView('table')}
-          >
-            <List className="h-4 w-4" />
-          </Button>
+        <div className="flex items-center gap-3">
+          <Link href="/leads/pipeline">
+            <Button variant="outline" size="sm">
+              <Kanban className="mr-2 h-4 w-4" />
+              Pipeline Kanban
+            </Button>
+          </Link>
+          <div className="flex gap-1 rounded-md border p-1">
+            <Button
+              variant={view === 'funnel' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setView('funnel')}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={view === 'table' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setView('table')}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 

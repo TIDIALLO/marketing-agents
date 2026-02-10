@@ -2,6 +2,9 @@ import type { Platform } from '../types/content';
 
 export const PLATFORMS: Platform[] = ['linkedin', 'facebook', 'instagram', 'tiktok', 'twitter'];
 
+// Currently supported platforms with real integrations
+export const ACTIVE_PLATFORMS: Platform[] = ['linkedin', 'twitter'];
+
 export const PLATFORM_LIMITS: Record<Platform, { maxChars: number; maxHashtags: number }> = {
   linkedin: { maxChars: 3000, maxHashtags: 5 },
   facebook: { maxChars: 500, maxHashtags: 5 },

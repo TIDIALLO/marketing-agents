@@ -17,16 +17,12 @@ describe('ROLE_HIERARCHY', () => {
 });
 
 describe('PERMISSIONS', () => {
-  it('should have tenant:manage restricted to owner only', () => {
-    expect(PERMISSIONS['tenant:manage']).toEqual(['owner']);
+  it('should restrict brands:create to owner and admin', () => {
+    expect(PERMISSIONS['brands:create']).toEqual(['owner', 'admin']);
   });
 
   it('should allow all roles to view analytics', () => {
     expect(PERMISSIONS['analytics:view']).toEqual(['owner', 'admin', 'editor', 'viewer']);
-  });
-
-  it('should allow owner and admin to invite users', () => {
-    expect(PERMISSIONS['users:invite']).toEqual(['owner', 'admin']);
   });
 
   it('should allow owner, admin, and editor to create content', () => {
@@ -37,7 +33,7 @@ describe('PERMISSIONS', () => {
     expect(PERMISSIONS['ads:create']).toEqual(['owner', 'admin']);
   });
 
-  it('should have 19 permissions defined', () => {
-    expect(Object.keys(PERMISSIONS)).toHaveLength(19);
+  it('should have 14 permissions defined', () => {
+    expect(Object.keys(PERMISSIONS)).toHaveLength(14);
   });
 });

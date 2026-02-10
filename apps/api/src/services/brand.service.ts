@@ -1,17 +1,39 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../lib/errors';
+import type { BrandVoiceConfig } from '@synap6ia/shared';
 
 function jsonOrDbNull(value: string | undefined): Prisma.InputJsonValue | typeof Prisma.JsonNull {
   return value ?? Prisma.JsonNull;
 }
 
+// ─── Brand Voice Validation ──────────────────────────────────
+
+function validateBrandVoice(config: BrandVoiceConfig): string | null {
+  if (!config.tone || !Array.isArray(config.tone) || config.tone.length === 0) {
+    return 'tone must be a non-empty array of strings';
+  }
+  if (!config.vocabulary || !Array.isArray(config.vocabulary.preferred)) {
+    return 'vocabulary.preferred must be an array';
+  }
+  if (!config.persona || !config.persona.name || !config.persona.role) {
+    return 'persona must have name and role';
+  }
+  if (!config.languageStyle || !config.languageStyle.formality) {
+    return 'languageStyle.formality is required';
+  }
+  const validFormalities = ['casual', 'professional', 'formal'];
+  if (!validFormalities.includes(config.languageStyle.formality)) {
+    return `languageStyle.formality must be one of: ${validFormalities.join(', ')}`;
+  }
+  return null;
+}
+
 // ─── Brands ──────────────────────────────────────────────────
 
 export async function createBrand(
-  tenantId: string,
+  userId: string,
   data: {
-    organizationId: string;
     name: string;
     brandVoice?: string;
     targetAudience?: string;
@@ -19,18 +41,9 @@ export async function createBrand(
     visualGuidelines?: string;
   },
 ) {
-  // Verify organization belongs to tenant
-  const org = await prisma.organization.findFirst({
-    where: { id: data.organizationId, tenantId },
-  });
-  if (!org) {
-    throw new AppError(404, 'NOT_FOUND', 'Organisation introuvable');
-  }
-
   return prisma.brand.create({
     data: {
-      tenantId,
-      organizationId: data.organizationId,
+      userId,
       name: data.name,
       brandVoice: jsonOrDbNull(data.brandVoice),
       targetAudience: jsonOrDbNull(data.targetAudience),
@@ -40,22 +53,19 @@ export async function createBrand(
   });
 }
 
-export async function listBrands(tenantId: string) {
+export async function listBrands() {
   return prisma.brand.findMany({
-    where: { tenantId },
     include: {
-      organization: { select: { id: true, name: true } },
       _count: { select: { products: true, socialAccounts: true } },
     },
     orderBy: { createdAt: 'desc' },
   });
 }
 
-export async function getBrandById(tenantId: string, id: string) {
+export async function getBrandById(id: string) {
   const brand = await prisma.brand.findFirst({
-    where: { id, tenantId },
+    where: { id },
     include: {
-      organization: { select: { id: true, name: true } },
       products: { orderBy: { createdAt: 'desc' } },
       socialAccounts: {
         select: {
@@ -77,7 +87,6 @@ export async function getBrandById(tenantId: string, id: string) {
 }
 
 export async function updateBrand(
-  tenantId: string,
   id: string,
   data: {
     name?: string;
@@ -87,15 +96,32 @@ export async function updateBrand(
     visualGuidelines?: string;
   },
 ) {
-  const brand = await prisma.brand.findFirst({ where: { id, tenantId } });
+  const brand = await prisma.brand.findFirst({ where: { id } });
   if (!brand) {
     throw new AppError(404, 'NOT_FOUND', 'Marque introuvable');
   }
   return prisma.brand.update({ where: { id }, data });
 }
 
-export async function deleteBrand(tenantId: string, id: string) {
-  const brand = await prisma.brand.findFirst({ where: { id, tenantId } });
+export async function updateBrandVoice(id: string, voiceConfig: BrandVoiceConfig) {
+  const brand = await prisma.brand.findFirst({ where: { id } });
+  if (!brand) {
+    throw new AppError(404, 'NOT_FOUND', 'Marque introuvable');
+  }
+
+  const validationError = validateBrandVoice(voiceConfig);
+  if (validationError) {
+    throw new AppError(400, 'VALIDATION_ERROR', `Brand voice invalide: ${validationError}`);
+  }
+
+  return prisma.brand.update({
+    where: { id },
+    data: { brandVoice: voiceConfig as unknown as Prisma.InputJsonValue },
+  });
+}
+
+export async function deleteBrand(id: string) {
+  const brand = await prisma.brand.findFirst({ where: { id } });
   if (!brand) {
     throw new AppError(404, 'NOT_FOUND', 'Marque introuvable');
   }
@@ -105,12 +131,11 @@ export async function deleteBrand(tenantId: string, id: string) {
 // ─── Products ────────────────────────────────────────────────
 
 export async function createProduct(
-  tenantId: string,
   data: { brandId: string; name: string; description?: string },
 ) {
-  // Verify brand belongs to tenant
+  // Verify brand exists
   const brand = await prisma.brand.findFirst({
-    where: { id: data.brandId, tenantId },
+    where: { id: data.brandId },
   });
   if (!brand) {
     throw new AppError(404, 'NOT_FOUND', 'Marque introuvable');
@@ -125,9 +150,9 @@ export async function createProduct(
   });
 }
 
-export async function listProducts(tenantId: string, brandId: string) {
-  // Verify brand belongs to tenant
-  const brand = await prisma.brand.findFirst({ where: { id: brandId, tenantId } });
+export async function listProducts(brandId: string) {
+  // Verify brand exists
+  const brand = await prisma.brand.findFirst({ where: { id: brandId } });
   if (!brand) {
     throw new AppError(404, 'NOT_FOUND', 'Marque introuvable');
   }
@@ -139,26 +164,23 @@ export async function listProducts(tenantId: string, brandId: string) {
 }
 
 export async function updateProduct(
-  tenantId: string,
   id: string,
   data: { name?: string; description?: string },
 ) {
   const product = await prisma.product.findFirst({
     where: { id },
-    include: { brand: { select: { tenantId: true } } },
   });
-  if (!product || product.brand.tenantId !== tenantId) {
+  if (!product) {
     throw new AppError(404, 'NOT_FOUND', 'Produit introuvable');
   }
   return prisma.product.update({ where: { id }, data });
 }
 
-export async function deleteProduct(tenantId: string, id: string) {
+export async function deleteProduct(id: string) {
   const product = await prisma.product.findFirst({
     where: { id },
-    include: { brand: { select: { tenantId: true } } },
   });
-  if (!product || product.brand.tenantId !== tenantId) {
+  if (!product) {
     throw new AppError(404, 'NOT_FOUND', 'Produit introuvable');
   }
   await prisma.product.delete({ where: { id } });

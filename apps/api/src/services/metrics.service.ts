@@ -2,7 +2,10 @@ import { prisma } from '../lib/prisma';
 import { claudeGenerate } from '../lib/ai';
 import { publishEvent } from '../lib/redis';
 import { sendSlackNotification } from '../lib/slack';
-import { emitToTenant } from '../lib/socket';
+import { emitEvent } from '../lib/socket';
+import { decrypt } from '../lib/encryption';
+import { getLinkedInPostStats } from '../lib/linkedin';
+import { getTweetMetrics } from '../lib/twitter';
 
 // Engagement score weights (Story 5.3)
 const WEIGHTS = {
@@ -12,6 +15,9 @@ const WEIGHTS = {
   saves: 4,
   clicks: 2,
 };
+
+// Collection intervals in hours (collect at these ages after publish)
+const COLLECTION_INTERVALS = [1, 24, 48, 168]; // 1h, 24h, 48h, 7d
 
 // ─── Metrics Collection (Stories 5.1, 5.2) ───────────────────
 
@@ -31,16 +37,44 @@ export async function collectMetrics() {
           socialAccounts: { where: { status: 'active' } },
         },
       },
+      metrics: {
+        select: { collectionAge: true },
+        orderBy: { collectedAt: 'desc' },
+      },
     },
   });
 
-  const results: { pieceId: string; platform: string; collected: boolean }[] = [];
+  const results: { pieceId: string; platform: string; collected: boolean; collectionAge?: number }[] = [];
 
   for (const piece of publishedPieces) {
+    // Determine post age in hours
+    const postAgeHours = piece.publishedAt
+      ? Math.floor((Date.now() - piece.publishedAt.getTime()) / 3600_000)
+      : 0;
+
+    // Find the next collection interval we haven't done yet
+    const collectedAges = new Set(piece.metrics.map((m) => m.collectionAge).filter(Boolean));
+    const nextInterval = COLLECTION_INTERVALS.find(
+      (interval) => postAgeHours >= interval && !collectedAges.has(interval),
+    );
+
+    // Also collect if no metrics exist yet, or if last collection was >6h ago
+    const lastMetric = piece.metrics[0];
+    const hoursSinceLastCollection = lastMetric
+      ? Math.floor((Date.now() - new Date().getTime()) / 3600_000)
+      : Infinity;
+    const shouldCollect = nextInterval !== undefined || !lastMetric || hoursSinceLastCollection >= 6;
+
+    if (!shouldCollect) {
+      continue;
+    }
+
+    const account = piece.brand.socialAccounts.find((a) => a.platform === piece.platform);
     const metrics = await collectPlatformMetrics(
       piece.platform,
       piece.platformPostId!,
-      piece.brand.socialAccounts.find((a) => a.platform === piece.platform)?.id,
+      account?.id,
+      account?.profileType ?? undefined,
     );
 
     // Calculate engagement rate
@@ -49,13 +83,14 @@ export async function collectMetrics() {
         ? ((metrics.likes + metrics.comments + metrics.shares) / metrics.impressions) * 100
         : 0;
 
-    // Store metrics snapshot
+    // Store metrics snapshot with collection age
     await prisma.contentMetrics.create({
       data: {
         contentPieceId: piece.id,
         platform: piece.platform,
         ...metrics,
         engagementRate,
+        collectionAge: nextInterval ?? postAgeHours,
       },
     });
 
@@ -72,17 +107,76 @@ export async function collectMetrics() {
       data: { engagementScore },
     });
 
-    results.push({ pieceId: piece.id, platform: piece.platform, collected: true });
+    results.push({ pieceId: piece.id, platform: piece.platform, collected: true, collectionAge: nextInterval ?? postAgeHours });
   }
 
   return results;
 }
 
-// Platform-specific metrics collection (mock in dev)
+// ─── Collect Metrics for a Single Piece ─────────────────────
+
+export async function collectMetricsForPiece(pieceId: string) {
+  const piece = await prisma.contentPiece.findFirst({
+    where: { id: pieceId, status: 'published', platformPostId: { not: null } },
+    include: {
+      brand: {
+        include: { socialAccounts: { where: { status: 'active' } } },
+      },
+    },
+  });
+
+  if (!piece || !piece.platformPostId) {
+    return null;
+  }
+
+  const account = piece.brand.socialAccounts.find((a) => a.platform === piece.platform);
+  const postAgeHours = piece.publishedAt
+    ? Math.floor((Date.now() - piece.publishedAt.getTime()) / 3600_000)
+    : 0;
+
+  const metrics = await collectPlatformMetrics(
+    piece.platform,
+    piece.platformPostId,
+    account?.id,
+    account?.profileType ?? undefined,
+  );
+
+  const engagementRate =
+    metrics.impressions > 0
+      ? ((metrics.likes + metrics.comments + metrics.shares) / metrics.impressions) * 100
+      : 0;
+
+  const stored = await prisma.contentMetrics.create({
+    data: {
+      contentPieceId: piece.id,
+      platform: piece.platform,
+      ...metrics,
+      engagementRate,
+      collectionAge: postAgeHours,
+    },
+  });
+
+  const engagementScore =
+    metrics.likes * WEIGHTS.likes +
+    metrics.comments * WEIGHTS.comments +
+    metrics.shares * WEIGHTS.shares +
+    metrics.saves * WEIGHTS.saves +
+    metrics.clicks * WEIGHTS.clicks;
+
+  await prisma.contentPiece.update({
+    where: { id: piece.id },
+    data: { engagementScore },
+  });
+
+  return stored;
+}
+
+// Platform-specific metrics collection — real API calls for LinkedIn & Twitter
 async function collectPlatformMetrics(
   platform: string,
-  _platformPostId: string,
-  _socialAccountId: string | undefined,
+  platformPostId: string,
+  socialAccountId: string | undefined,
+  profileType?: string,
 ): Promise<{
   impressions: number;
   reach: number;
@@ -94,28 +188,70 @@ async function collectPlatformMetrics(
   clicks: number;
   videoViews: number;
 }> {
-  // In production: decrypt tokens, call platform APIs
-  // LinkedIn: organizationalEntityShareStatistics
-  // Facebook: /{postId}/insights
-  // Instagram: /{mediaId}/insights
-  // Twitter: /tweets/:id with tweet.fields=public_metrics
-  // TikTok: /video/query
+  // Get access token if we have a social account
+  let accessToken: string | null = null;
+  if (socialAccountId) {
+    const account = await prisma.socialAccount.findUnique({ where: { id: socialAccountId } });
+    if (account?.accessTokenEncrypted) {
+      try {
+        accessToken = decrypt(account.accessTokenEncrypted);
+      } catch {
+        console.error(`[Metrics] Failed to decrypt token for account ${socialAccountId}`);
+      }
+    }
+  }
 
-  console.log(`[DEV] Collecting ${platform} metrics for post (mock)`);
+  if (!accessToken) {
+    console.log(`[Metrics] No access token for ${platform} account ${socialAccountId} — skipping`);
+    return { impressions: 0, reach: 0, engagements: 0, likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0, videoViews: 0 };
+  }
 
-  // Return mock metrics for development
-  const base = Math.floor(Math.random() * 1000);
-  return {
-    impressions: base + Math.floor(Math.random() * 5000),
-    reach: base + Math.floor(Math.random() * 3000),
-    engagements: Math.floor(Math.random() * 500),
-    likes: Math.floor(Math.random() * 200),
-    comments: Math.floor(Math.random() * 50),
-    shares: Math.floor(Math.random() * 30),
-    saves: Math.floor(Math.random() * 20),
-    clicks: Math.floor(Math.random() * 100),
-    videoViews: platform === 'tiktok' ? Math.floor(Math.random() * 10000) : 0,
-  };
+  switch (platform) {
+    case 'linkedin': {
+      try {
+        const stats = await getLinkedInPostStats(accessToken, platformPostId, profileType);
+        return {
+          impressions: stats.impressions,
+          reach: stats.impressions, // LinkedIn doesn't distinguish reach vs impressions for personal
+          engagements: stats.engagements,
+          likes: stats.likes,
+          comments: stats.comments,
+          shares: stats.shares,
+          saves: 0,
+          clicks: stats.clicks,
+          videoViews: 0,
+        };
+      } catch (err) {
+        console.error(`[Metrics] LinkedIn fetch failed for ${platformPostId}:`, err);
+        return { impressions: 0, reach: 0, engagements: 0, likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0, videoViews: 0 };
+      }
+    }
+
+    case 'twitter': {
+      try {
+        const stats = await getTweetMetrics(accessToken, platformPostId);
+        return {
+          impressions: stats.impressions,
+          reach: stats.impressions,
+          engagements: stats.likes + stats.retweets + stats.replies + stats.quotes,
+          likes: stats.likes,
+          comments: stats.replies,
+          shares: stats.retweets + stats.quotes,
+          saves: 0,
+          clicks: 0,
+          videoViews: 0,
+        };
+      } catch (err) {
+        console.error(`[Metrics] Twitter fetch failed for ${platformPostId}:`, err);
+        return { impressions: 0, reach: 0, engagements: 0, likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0, videoViews: 0 };
+      }
+    }
+
+    default: {
+      console.log(`[Metrics] Platform ${platform} not yet supported for metrics collection`);
+      return { impressions: 0, reach: 0, engagements: 0, likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0, videoViews: 0 };
+    }
+  }
 }
 
 // ─── Winning Content Signal Detection (Story 5.4) ────────────
@@ -130,7 +266,6 @@ export async function detectWinningContent() {
       contentPiece: {
         select: {
           id: true,
-          tenantId: true,
           brandId: true,
           title: true,
           body: true,
@@ -208,13 +343,12 @@ Impressions: ${winner.impressions}, Likes: ${winner.likes}, Comments: ${winner.c
     await publishEvent('mkt:agent:1:signals', {
       signalId: signal.id,
       contentPieceId: piece.id,
-      tenantId: piece.tenantId,
       signalType: signal.signalType,
       signalStrength: signal.signalStrength,
     });
 
     // Real-time WebSocket notification (Story 5.6)
-    emitToTenant(piece.tenantId, 'content:signal', {
+    emitEvent('content:signal', {
       signalId: signal.id,
       contentPieceId: piece.id,
       title: piece.title,
@@ -237,15 +371,11 @@ Impressions: ${winner.impressions}, Likes: ${winner.likes}, Comments: ${winner.c
 // ─── List Signals ────────────────────────────────────────────
 
 export async function listSignals(
-  tenantId: string,
   filters?: { brandId?: string; signalType?: string },
 ) {
   return prisma.contentSignal.findMany({
     where: {
-      contentPiece: {
-        tenantId,
-        ...(filters?.brandId ? { brandId: filters.brandId } : {}),
-      },
+      ...(filters?.brandId ? { contentPiece: { brandId: filters.brandId } } : {}),
       ...(filters?.signalType ? { signalType: filters.signalType } : {}),
     },
     include: {

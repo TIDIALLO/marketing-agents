@@ -13,7 +13,7 @@ export function useSSE<T>(endpoint: string): UseSSEResult<T> {
   const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
-    const apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+    const apiBase = process.env.NEXT_PUBLIC_API_URL ?? '';
     const token = localStorage.getItem('access_token');
     const url = `${apiBase}${endpoint}${endpoint.includes('?') ? '&' : '?'}token=${token}`;
 

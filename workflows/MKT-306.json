@@ -1,0 +1,123 @@
+{
+  "name": "MKT-306 Sales Briefing Generation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mkt-306",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "id": "trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nfor (const item of items) {\n  if (!item.json.leadId) {\n    throw new Error('Missing required field: leadId');\n  }\n}\nreturn items;"
+      },
+      "id": "validate",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst leadId = items[0].json.leadId;\nconsole.log(`Preparing sales briefing request for lead: ${leadId}`);\nreturn [{ json: { leadId, action: 'generate-briefing', timestamp: new Date().toISOString() } }];"
+      },
+      "id": "prepare-briefing",
+      "name": "Prepare Briefing Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://mkt-api:4000/api/internal/leads/briefing/{{ $json.leadId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.MKT_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ action: $json.action, timestamp: $json.timestamp }) }}",
+        "options": {}
+      },
+      "id": "generate-briefing",
+      "name": "Generate Sales Briefing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [250, 600]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mkt-api:4000/api/webhooks/n8n-error",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.MKT_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ workflow: 'MKT-306', error: $json.execution?.error?.message || 'Unknown error', executionId: $json.execution?.id }) }}",
+        "options": {}
+      },
+      "id": "report-error",
+      "name": "Report Error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 600]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [{ "node": "Validate Input", "type": "main", "index": 0 }]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [{ "node": "Prepare Briefing Request", "type": "main", "index": 0 }]
+      ]
+    },
+    "Prepare Briefing Request": {
+      "main": [
+        [{ "node": "Generate Sales Briefing", "type": "main", "index": 0 }]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [{ "node": "Report Error", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "opportunity-hunter" }
+  ]
+}

@@ -52,7 +52,7 @@ router.post(
   requirePermission('content:create'),
   validate(createSequenceSchema),
   asyncHandler(async (req, res) => {
-    const seq = await nurturingService.createSequence(req.user!.tenantId, req.body);
+    const seq = await nurturingService.createSequence(req.body);
     res.status(201).json({ success: true, data: seq });
   }),
 );
@@ -60,8 +60,8 @@ router.post(
 router.get(
   '/sequences',
   requirePermission('content:view'),
-  asyncHandler(async (req, res) => {
-    const sequences = await nurturingService.listSequences(req.user!.tenantId);
+  asyncHandler(async (_req, res) => {
+    const sequences = await nurturingService.listSequences();
     res.json({ success: true, data: sequences });
   }),
 );
@@ -70,7 +70,7 @@ router.get<{ id: string }>(
   '/sequences/:id',
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
-    const seq = await nurturingService.getSequenceById(req.user!.tenantId, req.params.id);
+    const seq = await nurturingService.getSequenceById(req.params.id);
     res.json({ success: true, data: seq });
   }),
 );
@@ -80,7 +80,7 @@ router.put<{ id: string }>(
   requirePermission('content:create'),
   validate(updateSequenceSchema),
   asyncHandler(async (req, res) => {
-    const seq = await nurturingService.updateSequence(req.user!.tenantId, req.params.id, req.body);
+    const seq = await nurturingService.updateSequence(req.params.id, req.body);
     res.json({ success: true, data: seq });
   }),
 );
@@ -89,7 +89,7 @@ router.delete<{ id: string }>(
   '/sequences/:id',
   requirePermission('content:approve'),
   asyncHandler(async (req, res) => {
-    await nurturingService.deleteSequence(req.user!.tenantId, req.params.id);
+    await nurturingService.deleteSequence(req.params.id);
     res.json({ success: true, data: null });
   }),
 );
@@ -103,7 +103,6 @@ router.post<{ leadId: string }>(
   validate(enrollSchema),
   asyncHandler(async (req, res) => {
     const enrollment = await nurturingService.enrollLead(
-      req.user!.tenantId,
       req.params.leadId,
       req.body.sequenceId,
     );
@@ -131,7 +130,6 @@ router.post<{ leadId: string }>(
   validate(analyzeResponseSchema),
   asyncHandler(async (req, res) => {
     const result = await nurturingService.analyzeResponse(
-      req.user!.tenantId,
       req.params.leadId,
       req.body,
     );
@@ -148,7 +146,6 @@ router.post<{ leadId: string }>(
   validate(escalateSchema),
   asyncHandler(async (req, res) => {
     const result = await nurturingService.escalateToHuman(
-      req.user!.tenantId,
       req.params.leadId,
       req.body.assignTo,
       req.body.reason,
@@ -166,7 +163,6 @@ router.post<{ leadId: string }>(
   validate(conversionSchema),
   asyncHandler(async (req, res) => {
     const result = await nurturingService.trackConversion(
-      req.user!.tenantId,
       req.params.leadId,
       req.body,
     );

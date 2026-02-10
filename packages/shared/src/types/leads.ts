@@ -26,7 +26,6 @@ export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled' 
 
 export interface Lead {
   id: string;
-  tenantId: string;
   brandId: string;
   firstName: string;
   lastName: string;
@@ -62,7 +61,6 @@ export interface LeadInteraction {
 
 export interface LeadSequence {
   id: string;
-  tenantId: string;
   name: string;
   steps: SequenceStep[];
   createdAt: string;

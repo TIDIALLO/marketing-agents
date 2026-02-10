@@ -29,7 +29,6 @@ const authService = await import('../auth.service');
 
 const mockUser = {
   id: 'user-1',
-  tenantId: 'tenant-1',
   email: 'test@synap6ia.com',
   passwordHash: await bcrypt.hash('Password123!', 4),
   firstName: 'Test',

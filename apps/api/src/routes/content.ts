@@ -5,6 +5,9 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { requirePermission } from '../middleware/requireRole';
 import * as contentService from '../services/content.service';
 import * as publishingService from '../services/publishing.service';
+import * as visualService from '../services/visual.service';
+import * as repurposeService from '../services/repurpose.service';
+import { COPY_FRAMEWORKS } from '../lib/copy-frameworks';
 
 // ─── Schemas ─────────────────────────────────────────────────
 
@@ -26,6 +29,7 @@ const generatePieceSchema = z.object({
   platform: z.enum(['linkedin', 'facebook', 'instagram', 'tiktok', 'twitter'], {
     errorMap: () => ({ message: 'Plateforme invalide' }),
   }),
+  framework: z.enum(['pas', 'aida', 'storytelling', 'hook-based', 'listicle', 'contrarian']).optional(),
 });
 
 const updatePieceSchema = z.object({
@@ -59,7 +63,7 @@ router.post(
   requirePermission('content:create'),
   validate(createPillarSchema),
   asyncHandler(async (req, res) => {
-    const pillar = await contentService.createPillar(req.user!.tenantId, req.body);
+    const pillar = await contentService.createPillar(req.body);
     res.status(201).json({ success: true, data: pillar });
   }),
 );
@@ -76,7 +80,7 @@ router.get(
       });
       return;
     }
-    const pillars = await contentService.listPillars(req.user!.tenantId, brandId);
+    const pillars = await contentService.listPillars(brandId);
     res.json({ success: true, data: pillars });
   }),
 );
@@ -90,7 +94,6 @@ router.post(
   validate(createInputSchema),
   asyncHandler(async (req, res) => {
     const input = await contentService.createInput(
-      req.user!.tenantId,
       req.user!.userId,
       req.body,
     );
@@ -127,7 +130,6 @@ router.post(
 
     const audioBuffer = Buffer.from(audioBase64, 'base64');
     const input = await contentService.createAudioInput(
-      req.user!.tenantId,
       req.user!.userId,
       { brandId, audioBuffer, filename, pillarId },
     );
@@ -141,7 +143,7 @@ router.get(
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
     const brandId = req.query.brandId as string | undefined;
-    const inputs = await contentService.listInputs(req.user!.tenantId, brandId);
+    const inputs = await contentService.listInputs(brandId);
     res.json({ success: true, data: inputs });
   }),
 );
@@ -151,7 +153,7 @@ router.get<{ id: string }>(
   '/inputs/:id',
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
-    const input = await contentService.getInputById(req.user!.tenantId, req.params.id);
+    const input = await contentService.getInputById(req.params.id);
     res.json({ success: true, data: input });
   }),
 );
@@ -161,7 +163,7 @@ router.post<{ id: string }>(
   '/inputs/:id/research',
   requirePermission('content:create'),
   asyncHandler(async (req, res) => {
-    const input = await contentService.runAiResearch(req.user!.tenantId, req.params.id);
+    const input = await contentService.runAiResearch(req.params.id);
     res.json({ success: true, data: input });
   }),
 );
@@ -173,9 +175,9 @@ router.post<{ id: string }>(
   validate(generatePieceSchema),
   asyncHandler(async (req, res) => {
     const piece = await contentService.generateContentPiece(
-      req.user!.tenantId,
       req.params.id,
       req.body.platform,
+      req.body.framework,
     );
     res.status(201).json({ success: true, data: piece });
   }),
@@ -188,7 +190,7 @@ router.get(
   '/pieces',
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
-    const pieces = await contentService.listPieces(req.user!.tenantId, {
+    const pieces = await contentService.listPieces({
       brandId: req.query.brandId as string | undefined,
       status: req.query.status as string | undefined,
     });
@@ -201,7 +203,7 @@ router.get<{ id: string }>(
   '/pieces/:id',
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
-    const piece = await contentService.getPieceById(req.user!.tenantId, req.params.id);
+    const piece = await contentService.getPieceById(req.params.id);
     res.json({ success: true, data: piece });
   }),
 );
@@ -212,7 +214,7 @@ router.put<{ id: string }>(
   requirePermission('content:create'),
   validate(updatePieceSchema),
   asyncHandler(async (req, res) => {
-    const piece = await contentService.updatePiece(req.user!.tenantId, req.params.id, req.body);
+    const piece = await contentService.updatePiece(req.params.id, req.body);
     res.json({ success: true, data: piece });
   }),
 );
@@ -224,7 +226,6 @@ router.put<{ id: string }>(
   validate(updateStatusSchema),
   asyncHandler(async (req, res) => {
     const piece = await contentService.updatePieceStatus(
-      req.user!.tenantId,
       req.params.id,
       req.body.status,
     );
@@ -232,13 +233,66 @@ router.put<{ id: string }>(
   }),
 );
 
-// POST /api/content/pieces/:id/generate-visual — generate DALL-E visual (Story 3.5)
+// POST /api/content/pieces/:id/generate-visual — generate template-based visual (Story 3.5)
 router.post<{ id: string }>(
   '/pieces/:id/generate-visual',
   requirePermission('content:create'),
   asyncHandler(async (req, res) => {
-    const piece = await contentService.generateVisual(req.user!.tenantId, req.params.id);
-    res.json({ success: true, data: piece });
+    const { templateId, overrides } = req.body;
+
+    if (templateId) {
+      // Template-based visual generation
+      const result = await visualService.generateVisualFromTemplate(
+        req.params.id,
+        templateId,
+        overrides,
+      );
+      res.json({ success: true, data: result });
+    } else {
+      // Auto-suggest and generate
+      const suggestion = await visualService.suggestTemplate(req.params.id);
+      const result = await visualService.generateVisualFromTemplate(
+        req.params.id,
+        suggestion.templateId,
+        suggestion.variables,
+      );
+      res.json({ success: true, data: result });
+    }
+  }),
+);
+
+// GET /api/content/templates — list available visual templates
+router.get(
+  '/templates',
+  requirePermission('content:view'),
+  asyncHandler(async (_req, res) => {
+    const templates = visualService.listTemplates();
+    res.json({ success: true, data: templates });
+  }),
+);
+
+// GET /api/content/frameworks — list copy frameworks
+router.get(
+  '/frameworks',
+  requirePermission('content:view'),
+  asyncHandler(async (_req, res) => {
+    res.json({ success: true, data: COPY_FRAMEWORKS });
+  }),
+);
+
+// POST /api/content/pieces/:id/repurpose — repurpose to other formats
+router.post<{ id: string }>(
+  '/pieces/:id/repurpose',
+  requirePermission('content:create'),
+  validate(z.object({
+    targetFormats: z.array(z.enum(['thread', 'blog-draft', 'newsletter', 'carousel'])).min(1),
+  })),
+  asyncHandler(async (req, res) => {
+    const results = await repurposeService.repurposePiece(
+      req.params.id,
+      req.body.targetFormats,
+    );
+    res.json({ success: true, data: results });
   }),
 );
 
@@ -247,7 +301,7 @@ router.post<{ id: string }>(
   '/pieces/:id/adapt',
   requirePermission('content:create'),
   asyncHandler(async (req, res) => {
-    const result = await publishingService.adaptToAllPlatforms(req.user!.tenantId, req.params.id);
+    const result = await publishingService.adaptToAllPlatforms(req.params.id);
     res.json({ success: true, data: result });
   }),
 );
@@ -259,7 +313,6 @@ router.post<{ id: string }>(
   validate(scheduleSchema),
   asyncHandler(async (req, res) => {
     const schedule = await publishingService.scheduleContent(
-      req.user!.tenantId,
       req.params.id,
       req.body.socialAccountId,
       new Date(req.body.scheduledAt),
@@ -285,7 +338,7 @@ router.get(
   '/schedules',
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
-    const schedules = await publishingService.listSchedules(req.user!.tenantId, {
+    const schedules = await publishingService.listSchedules({
       from: req.query.from ? new Date(req.query.from as string) : undefined,
       to: req.query.to ? new Date(req.query.to as string) : undefined,
       brandId: req.query.brandId as string | undefined,
@@ -302,7 +355,6 @@ router.put<{ id: string }>(
   validate(rescheduleSchema),
   asyncHandler(async (req, res) => {
     const schedule = await publishingService.updateSchedule(
-      req.user!.tenantId,
       req.params.id,
       { scheduledAt: new Date(req.body.scheduledAt) },
     );
@@ -315,7 +367,7 @@ router.post<{ id: string }>(
   '/schedules/:id/publish',
   requirePermission('content:approve'),
   asyncHandler(async (req, res) => {
-    const piece = await publishingService.publishSingle(req.user!.tenantId, req.params.id);
+    const piece = await publishingService.publishSingle(req.params.id);
     res.json({ success: true, data: piece });
   }),
 );

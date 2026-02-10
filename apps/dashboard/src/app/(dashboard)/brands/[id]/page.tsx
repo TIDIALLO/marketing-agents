@@ -16,7 +16,16 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
-import type { Brand, Product, SocialAccount } from '@synap6ia/shared';
+import type { Brand, BrandVoiceConfig, Product, SocialAccount } from '@synap6ia/shared';
+
+const DEFAULT_VOICE: BrandVoiceConfig = {
+  tone: ['expert', 'accessible'],
+  vocabulary: { preferred: [], avoided: [] },
+  persona: { name: '', role: '', background: '' },
+  frameworks: [],
+  languageStyle: { formality: 'professional', humor: 'light', emojiUsage: 'minimal', sentenceLength: 'mixed' },
+  examples: { good: [], bad: [] },
+};
 
 export default function BrandDetailPage() {
   const params = useParams<{ id: string }>();
@@ -24,6 +33,7 @@ export default function BrandDetailPage() {
   const tCommon = useTranslations('common');
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [voiceSubmitting, setVoiceSubmitting] = useState(false);
 
   const { data: brand, isLoading, mutate } = useApi<Brand>(
     `/api/brands/${params.id}`,
@@ -108,6 +118,7 @@ export default function BrandDetailPage() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="voice">Brand Voice</TabsTrigger>
           <TabsTrigger value="products">Produits</TabsTrigger>
           <TabsTrigger value="social">Comptes sociaux</TabsTrigger>
           <TabsTrigger value="guidelines">Guidelines</TabsTrigger>
@@ -145,6 +156,32 @@ export default function BrandDetailPage() {
                   {isSubmitting ? 'Enregistrement...' : tCommon('save')}
                 </Button>
               </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="voice">
+          <Card>
+            <CardContent className="p-6">
+              <BrandVoiceEditor
+                initial={brand.brandVoice as BrandVoiceConfig | null}
+                isSubmitting={voiceSubmitting}
+                onSave={async (config) => {
+                  setVoiceSubmitting(true);
+                  try {
+                    await apiClient(`/api/brands/${params.id}/voice`, {
+                      method: 'PUT',
+                      body: config,
+                    });
+                    toast({ title: 'Brand Voice mise à jour', variant: 'success' });
+                    await mutate();
+                  } catch {
+                    toast({ title: 'Erreur de validation', variant: 'destructive' });
+                  } finally {
+                    setVoiceSubmitting(false);
+                  }
+                }}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -230,5 +267,154 @@ export default function BrandDetailPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+// ─── Brand Voice Editor Component ───────────────────────────
+
+function BrandVoiceEditor({
+  initial,
+  isSubmitting,
+  onSave,
+}: {
+  initial: BrandVoiceConfig | null;
+  isSubmitting: boolean;
+  onSave: (config: BrandVoiceConfig) => Promise<void>;
+}) {
+  const voice = initial ?? DEFAULT_VOICE;
+  const [tone, setTone] = useState(voice.tone.join(', '));
+  const [preferred, setPreferred] = useState(voice.vocabulary.preferred.join(', '));
+  const [avoided, setAvoided] = useState(voice.vocabulary.avoided.join(', '));
+  const [personaName, setPersonaName] = useState(voice.persona.name);
+  const [personaRole, setPersonaRole] = useState(voice.persona.role);
+  const [personaBg, setPersonaBg] = useState(voice.persona.background);
+  const [formality, setFormality] = useState(voice.languageStyle.formality);
+  const [humor, setHumor] = useState(voice.languageStyle.humor);
+  const [emoji, setEmoji] = useState(voice.languageStyle.emojiUsage);
+  const [sentenceLength, setSentenceLength] = useState(voice.languageStyle.sentenceLength);
+  const [goodExamples, setGoodExamples] = useState(voice.examples.good.join('\n'));
+  const [badExamples, setBadExamples] = useState(voice.examples.bad.join('\n'));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const config: BrandVoiceConfig = {
+      tone: tone.split(',').map((s) => s.trim()).filter(Boolean),
+      vocabulary: {
+        preferred: preferred.split(',').map((s) => s.trim()).filter(Boolean),
+        avoided: avoided.split(',').map((s) => s.trim()).filter(Boolean),
+      },
+      persona: { name: personaName, role: personaRole, background: personaBg },
+      frameworks: voice.frameworks,
+      languageStyle: { formality, humor, emojiUsage: emoji, sentenceLength },
+      examples: {
+        good: goodExamples.split('\n').filter(Boolean),
+        bad: badExamples.split('\n').filter(Boolean),
+      },
+    };
+    await onSave(config);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold mb-4">Configuration Brand Voice</h3>
+        <p className="text-sm text-muted-foreground mb-6">
+          Définissez la voix de marque structurée qui sera utilisée pour toute génération de contenu IA.
+        </p>
+      </div>
+
+      {/* Persona */}
+      <div className="space-y-3">
+        <h4 className="font-medium">Persona</h4>
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="space-y-1">
+            <Label>Nom</Label>
+            <Input value={personaName} onChange={(e) => setPersonaName(e.target.value)} placeholder="Ex: Marc" />
+          </div>
+          <div className="space-y-1">
+            <Label>Rôle</Label>
+            <Input value={personaRole} onChange={(e) => setPersonaRole(e.target.value)} placeholder="Ex: CTO & Fondateur" />
+          </div>
+          <div className="space-y-1">
+            <Label>Background</Label>
+            <Input value={personaBg} onChange={(e) => setPersonaBg(e.target.value)} placeholder="Ex: 15 ans en cybersécurité" />
+          </div>
+        </div>
+      </div>
+
+      {/* Tone */}
+      <div className="space-y-2">
+        <Label>Tons (séparés par virgule)</Label>
+        <Input value={tone} onChange={(e) => setTone(e.target.value)} placeholder="expert, accessible, confiant, orienté résultats" />
+      </div>
+
+      {/* Language Style */}
+      <div className="space-y-3">
+        <h4 className="font-medium">Style</h4>
+        <div className="grid gap-3 md:grid-cols-4">
+          <div className="space-y-1">
+            <Label>Formalité</Label>
+            <select className="w-full rounded-md border px-3 py-2 text-sm" value={formality} onChange={(e) => setFormality(e.target.value as typeof formality)}>
+              <option value="casual">Casual</option>
+              <option value="professional">Professionnel</option>
+              <option value="formal">Formel</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label>Humour</Label>
+            <select className="w-full rounded-md border px-3 py-2 text-sm" value={humor} onChange={(e) => setHumor(e.target.value as typeof humor)}>
+              <option value="none">Aucun</option>
+              <option value="light">Léger</option>
+              <option value="frequent">Fréquent</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label>Emojis</Label>
+            <select className="w-full rounded-md border px-3 py-2 text-sm" value={emoji} onChange={(e) => setEmoji(e.target.value as typeof emoji)}>
+              <option value="none">Aucun</option>
+              <option value="minimal">Minimal</option>
+              <option value="moderate">Modéré</option>
+              <option value="heavy">Abondant</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label>Phrases</Label>
+            <select className="w-full rounded-md border px-3 py-2 text-sm" value={sentenceLength} onChange={(e) => setSentenceLength(e.target.value as typeof sentenceLength)}>
+              <option value="short">Courtes</option>
+              <option value="mixed">Mixtes</option>
+              <option value="long">Longues</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Vocabulary */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Vocabulaire privilégié (virgule)</Label>
+          <Input value={preferred} onChange={(e) => setPreferred(e.target.value)} placeholder="ROI, automatisation, résultats" />
+        </div>
+        <div className="space-y-2">
+          <Label>Vocabulaire à éviter (virgule)</Label>
+          <Input value={avoided} onChange={(e) => setAvoided(e.target.value)} placeholder="jargon, buzz, disruption" />
+        </div>
+      </div>
+
+      {/* Examples */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Bons exemples (un par ligne)</Label>
+          <Textarea rows={4} value={goodExamples} onChange={(e) => setGoodExamples(e.target.value)} placeholder="Exemple de post qui correspond à la voix..." />
+        </div>
+        <div className="space-y-2">
+          <Label>Mauvais exemples (un par ligne)</Label>
+          <Textarea rows={4} value={badExamples} onChange={(e) => setBadExamples(e.target.value)} placeholder="Exemple de post à ne pas imiter..." />
+        </div>
+      </div>
+
+      <Button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? 'Enregistrement...' : 'Sauvegarder la Brand Voice'}
+      </Button>
+    </form>
   );
 }

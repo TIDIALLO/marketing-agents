@@ -9,7 +9,6 @@ import type { JwtPayload } from '@synap6ia/shared';
 
 const mockPayload: JwtPayload = {
   userId: 'user-123',
-  tenantId: 'tenant-456',
   role: 'admin',
   email: 'test@synap6ia.com',
 };
@@ -23,7 +22,6 @@ describe('JWT', () => {
 
       const decoded = verifyAccessToken(token);
       expect(decoded.userId).toBe(mockPayload.userId);
-      expect(decoded.tenantId).toBe(mockPayload.tenantId);
       expect(decoded.role).toBe(mockPayload.role);
       expect(decoded.email).toBe(mockPayload.email);
     });

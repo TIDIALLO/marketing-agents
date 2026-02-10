@@ -11,7 +11,6 @@ import * as monitoringService from '../services/monitoring.service';
 // ─── Schemas ─────────────────────────────────────────────────
 
 const leadWebhookSchema = z.object({
-  tenantId: z.string().min(1),
   brandId: z.string().min(1),
   firstName: z.string().trim().min(1),
   lastName: z.string().trim().min(1),
@@ -26,7 +25,56 @@ const leadWebhookSchema = z.object({
   gdprConsent: z.boolean().optional(),
 });
 
+// ─── Public Lead Form Schema (simplified) ────
+const leadFormSchema = z.object({
+  firstName: z.string().trim().min(1),
+  lastName: z.string().trim().min(1),
+  email: z.string().email(),
+  company: z.string().optional(),
+  phone: z.string().optional(),
+  message: z.string().optional(),
+  gdprConsent: z.boolean().optional(),
+});
+
 const router = Router();
+
+// POST /api/webhooks/lead-form/:brandId — public lead capture form
+// No auth required, resolves brand from brandId
+router.post<{ brandId: string }>(
+  '/lead-form/:brandId',
+  validate(leadFormSchema),
+  asyncHandler(async (req, res) => {
+    const { brandId } = req.params;
+    const brand = await (await import('../lib/prisma')).prisma.brand.findUnique({
+      where: { id: brandId },
+      select: { id: true },
+    });
+
+    if (!brand) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Brand introuvable' } });
+      return;
+    }
+
+    const lead = await leadService.ingestLead({
+      brandId: brand.id,
+      firstName: req.body.firstName,
+      lastName: req.body.lastName,
+      email: req.body.email,
+      phone: req.body.phone,
+      company: req.body.company,
+      source: 'form',
+      sourceDetail: req.body.message ?? undefined,
+      gdprConsent: req.body.gdprConsent,
+    });
+
+    // Fire-and-forget auto-scoring
+    leadService.scoreLead(lead.id).catch((err) =>
+      console.error('[Auto-score]', err),
+    );
+
+    res.status(201).json({ success: true, data: { message: 'Merci !' } });
+  }),
+);
 
 // POST /api/webhooks/mkt-301 — lead ingestion webhook (Story 6.1)
 // Public endpoint: called by Facebook Lead Ads, forms, n8n, etc.
@@ -42,7 +90,6 @@ router.post(
 // POST /api/webhooks/mkt-304 — inbound lead response webhook (Story 7.3)
 // Called by email reply handler, WhatsApp webhook, etc.
 const responseWebhookSchema = z.object({
-  tenantId: z.string().min(1),
   leadId: z.string().min(1),
   channel: z.enum(['email', 'whatsapp', 'phone', 'form']),
   content: z.string().min(1),
@@ -53,7 +100,6 @@ router.post(
   validate(responseWebhookSchema),
   asyncHandler(async (req, res) => {
     const result = await nurturingService.analyzeResponse(
-      req.body.tenantId,
       req.body.leadId,
       { channel: req.body.channel, content: req.body.content },
     );
@@ -63,7 +109,6 @@ router.post(
 
 // POST /api/webhooks/mkt-307 — conversion event webhook (Story 7.6)
 const conversionWebhookSchema = z.object({
-  tenantId: z.string().min(1),
   leadId: z.string().min(1),
   conversionValue: z.number().min(0),
   source: z.string().optional(),
@@ -74,7 +119,6 @@ router.post(
   validate(conversionWebhookSchema),
   asyncHandler(async (req, res) => {
     const result = await nurturingService.trackConversion(
-      req.body.tenantId,
       req.body.leadId,
       { conversionValue: req.body.conversionValue, source: req.body.source },
     );
@@ -84,7 +128,6 @@ router.post(
 
 // POST /api/webhooks/mkt-301-ad — ad lead ingestion with attribution (Story 10.4)
 const adLeadWebhookSchema = z.object({
-  tenantId: z.string().min(1),
   brandId: z.string().min(1),
   firstName: z.string().trim().min(1),
   lastName: z.string().trim().min(1),

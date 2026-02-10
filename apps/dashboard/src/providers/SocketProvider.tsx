@@ -23,7 +23,11 @@ const SocketContext = createContext<SocketContextValue>({
   isConnected: false,
 });
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+function getSocketUrl(): string {
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+  if (typeof window === 'undefined') return 'http://localhost:4000';
+  return `${window.location.protocol}//${window.location.hostname}:4000`;
+}
 
 export function SocketProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated } = useAuth();
@@ -34,7 +38,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     if (!isAuthenticated || !user) return;
 
     const token = localStorage.getItem('access_token');
-    const newSocket: TypedSocket = io(SOCKET_URL, {
+    const newSocket: TypedSocket = io(getSocketUrl(), {
       auth: { token },
       transports: ['websocket'],
       reconnection: true,
@@ -44,7 +48,6 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 
     newSocket.on('connect', () => {
       setIsConnected(true);
-      newSocket.emit('join:tenant', user.tenantId);
     });
 
     newSocket.on('disconnect', () => {
@@ -54,7 +57,6 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     setSocket(newSocket);
 
     return () => {
-      newSocket.emit('leave:tenant', user.tenantId);
       newSocket.disconnect();
       setSocket(null);
       setIsConnected(false);

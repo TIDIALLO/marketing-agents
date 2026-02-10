@@ -2,57 +2,110 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../lib/errors';
 import { claudeGenerate, dalleGenerate } from '../lib/ai';
-import { uploadFromUrl } from '../lib/minio';
 import { sendSlackNotification } from '../lib/slack';
-import { emitToTenant } from '../lib/socket';
+import { emitEvent } from '../lib/socket';
 import { triggerWorkflow } from '../lib/n8n';
+import {
+  isMetaConfigured,
+  searchAdLibrary,
+  createCampaign as metaCreateCampaign,
+  createAdSet as metaCreateAdSet,
+  createAdCreative as metaCreateAdCreative,
+  createAd as metaCreateAd,
+  getCampaignInsights,
+  getAdSetInsights,
+  updateCampaignStatus,
+  updateAdSetStatus,
+  updateAdSetBudget,
+} from '../lib/meta-ads';
 
 // ─── Competitive Ad Research (Story 8.1) ─────────────────────
 
-export async function runCompetitorResearch(tenantId: string, brandId: string) {
-  // In production: call Facebook Ad Library API for competitor ads
-  console.log(`[DEV] Facebook Ad Library not configured — generating mock competitor data`);
+export async function runCompetitorResearch(brandId: string) {
+  const brand = await prisma.brand.findFirst({
+    where: { id: brandId },
+    select: { name: true, targetAudience: true },
+  });
+  if (!brand) throw new AppError(404, 'NOT_FOUND', 'Marque introuvable');
 
-  const mockCompetitors = ['Concurrent A', 'Concurrent B'];
+  // Build search terms from brand context
+  const searchTerms = ['SOC', 'cybersecurity', 'SIEM', 'security operations'];
   const results = [];
 
-  for (const competitorName of mockCompetitors) {
-    const mockAdContent = `[MOCK] Publicité ${competitorName} — Offre promotionnelle ciblant PME`;
+  if (isMetaConfigured()) {
+    // Real Ad Library API search
+    for (const term of searchTerms.slice(0, 2)) {
+      const ads = await searchAdLibrary({
+        searchTerms: term,
+        country: 'FR',
+        limit: 10,
+      });
 
-    const aiAnalysis = await claudeGenerate(
-      `Tu es un analyste publicitaire expert. Analyse cette publicité concurrente et identifie:
+      for (const ad of ads.slice(0, 3)) {
+        const adContent = (ad.ad_creative_bodies ?? []).join('\n').slice(0, 1000);
+        const title = (ad.ad_creative_link_titles ?? [])[0] ?? '';
+
+        const aiAnalysis = await claudeGenerate(
+          `Tu es un analyste publicitaire expert. Analyse cette publicité concurrente et identifie:
 - Stratégie utilisée
 - Audience ciblée
 - Points forts/faibles
 - Opportunités pour se différencier
 Réponds en 3-4 phrases concises.`,
-      `Concurrent: ${competitorName}\nContenu pub: ${mockAdContent}`,
-    );
+          `Concurrent: ${ad.page_name}\nTitre: ${title}\nContenu pub: ${adContent}\nPlatformes: ${(ad.publisher_platforms ?? []).join(', ')}`,
+        );
 
-    const ad = await prisma.competitorAd.create({
-      data: {
-        tenantId,
-        brandId,
-        platform: 'facebook',
-        competitorName,
-        adContent: mockAdContent,
-        aiAnalysis,
-      },
-    });
+        const created = await prisma.competitorAd.create({
+          data: {
+            brandId,
+            platform: 'facebook',
+            competitorName: ad.page_name,
+            adContent: `${title}\n${adContent}`.slice(0, 2000),
+            imageUrl: null,
+            aiAnalysis,
+          },
+        });
+        results.push(created);
+      }
+    }
+  } else {
+    // Mock fallback
+    console.log('[Meta] Not configured — generating mock competitor data');
+    const mockCompetitors = ['Concurrent A', 'Concurrent B'];
 
-    results.push(ad);
+    for (const competitorName of mockCompetitors) {
+      const mockAdContent = `[MOCK] Publicité ${competitorName} — Offre promotionnelle ciblant PME`;
+      const aiAnalysis = await claudeGenerate(
+        `Tu es un analyste publicitaire expert. Analyse cette publicité concurrente et identifie:
+- Stratégie utilisée
+- Audience ciblée
+- Points forts/faibles
+- Opportunités pour se différencier
+Réponds en 3-4 phrases concises.`,
+        `Concurrent: ${competitorName}\nContenu pub: ${mockAdContent}`,
+      );
+
+      const ad = await prisma.competitorAd.create({
+        data: {
+          brandId,
+          platform: 'facebook',
+          competitorName,
+          adContent: mockAdContent,
+          aiAnalysis,
+        },
+      });
+      results.push(ad);
+    }
   }
 
   return results;
 }
 
 export async function listCompetitorAds(
-  tenantId: string,
   filters?: { brandId?: string; platform?: string },
 ) {
   return prisma.competitorAd.findMany({
     where: {
-      tenantId,
       ...(filters?.brandId ? { brandId: filters.brandId } : {}),
       ...(filters?.platform ? { platform: filters.platform } : {}),
     },
@@ -64,7 +117,6 @@ export async function listCompetitorAds(
 // ─── AI Campaign Proposal (Story 8.2) ────────────────────────
 
 export async function generateCampaignProposal(
-  tenantId: string,
   data: {
     brandId: string;
     adAccountId: string;
@@ -75,7 +127,7 @@ export async function generateCampaignProposal(
 ) {
   // Get brand context
   const brand = await prisma.brand.findFirst({
-    where: { id: data.brandId, tenantId },
+    where: { id: data.brandId },
     select: { name: true, brandVoice: true, targetAudience: true },
   });
   if (!brand) throw new AppError(404, 'NOT_FOUND', 'Marque introuvable');
@@ -96,7 +148,7 @@ Recommandation: ${signal.aiRecommendation}`;
 
   // Get recent competitor intel
   const recentCompetitors = await prisma.competitorAd.findMany({
-    where: { tenantId, brandId: data.brandId },
+    where: { brandId: data.brandId },
     orderBy: { collectedAt: 'desc' },
     take: 3,
     select: { competitorName: true, aiAnalysis: true },
@@ -152,7 +204,6 @@ Contexte concurrentiel:\n${competitorContext || 'Pas de données concurrentielle
   // Create campaign
   const campaign = await prisma.adCampaign.create({
     data: {
-      tenantId,
       brandId: data.brandId,
       adAccountId: data.adAccountId,
       contentSignalId: data.contentSignalId ?? null,
@@ -189,9 +240,8 @@ Contexte concurrentiel:\n${competitorContext || 'Pas de données concurrentielle
         `${creativeData.imagePrompt}. Style: publicité professionnelle, moderne, ${data.platform}.`,
         { size: '1792x1024' },
       );
-      const date = new Date().toISOString().slice(0, 10);
-      const objectPath = `${tenantId}/ads/${date}_${campaign.id}_creative.png`;
-      imageUrl = await uploadFromUrl(objectPath, dalleUrl);
+      // Use DALL-E URL directly
+      imageUrl = dalleUrl;
     }
 
     await prisma.adCreative.create({
@@ -208,7 +258,6 @@ Contexte concurrentiel:\n${competitorContext || 'Pas de données concurrentielle
   // Trigger approval (Story 8.3)
   triggerWorkflow('mkt-203', {
     campaignId: campaign.id,
-    tenantId,
     brandId: data.brandId,
   }).catch((err) => console.error('[n8n] MKT-203 trigger failed:', err));
 
@@ -220,16 +269,16 @@ Contexte concurrentiel:\n${competitorContext || 'Pas de données concurrentielle
 
 // ─── Campaign Approval Gate (Story 8.3) ──────────────────────
 
-export async function submitCampaignForApproval(tenantId: string, campaignId: string, assigneeId?: string) {
+export async function submitCampaignForApproval(campaignId: string, assigneeId?: string) {
   const campaign = await prisma.adCampaign.findFirst({
-    where: { id: campaignId, tenantId },
+    where: { id: campaignId },
     include: { creatives: true },
   });
   if (!campaign) throw new AppError(404, 'NOT_FOUND', 'Campagne introuvable');
 
   // Uses existing approval system from Epic 4
   const { submitForApproval } = await import('./approval.service');
-  const approval = await submitForApproval(tenantId, 'ad_campaign', campaignId, assigneeId, 'high');
+  const approval = await submitForApproval('ad_campaign', campaignId, assigneeId, 'high');
 
   await prisma.adCampaign.update({
     where: { id: campaignId },
@@ -241,9 +290,9 @@ export async function submitCampaignForApproval(tenantId: string, campaignId: st
 
 // ─── Campaign Launch (Stories 8.4, 8.5) ──────────────────────
 
-export async function launchCampaign(tenantId: string, campaignId: string) {
+export async function launchCampaign(campaignId: string) {
   const campaign = await prisma.adCampaign.findFirst({
-    where: { id: campaignId, tenantId, status: 'approved' },
+    where: { id: campaignId, status: 'approved' },
     include: { adSets: true, creatives: true },
   });
   if (!campaign) throw new AppError(404, 'NOT_FOUND', 'Campagne introuvable ou non approuvée');
@@ -269,7 +318,7 @@ export async function launchCampaign(tenantId: string, campaignId: string) {
   });
 
   // WebSocket notification
-  emitToTenant(tenantId, 'campaign:launched', {
+  emitEvent('campaign:launched', {
     campaignId: campaign.id,
     name: campaign.name,
     platform: campaign.platform,
@@ -282,32 +331,101 @@ export async function launchCampaign(tenantId: string, campaignId: string) {
   return updated;
 }
 
-// Facebook Ads API v19 (mock in dev)
+// Facebook Ads API v22 — Real implementation with mock fallback
 async function launchFacebookCampaign(campaign: {
   id: string;
   name: string;
   objective: string;
-  adSets: { id: string; name: string }[];
-  creatives: { id: string; title: string }[];
+  dailyBudget: number;
+  targeting: Prisma.JsonValue;
+  adSets: { id: string; name: string; dailyBudget: number; targeting: Prisma.JsonValue }[];
+  creatives: { id: string; title: string; body: string; imageUrl: string; callToActionType: string }[];
 }): Promise<string> {
-  console.log(`[DEV] Facebook Ads API — launching campaign "${campaign.name}"`);
-  console.log(`  Ad sets: ${campaign.adSets.length}, Creatives: ${campaign.creatives.length}`);
+  if (!isMetaConfigured()) {
+    console.log(`[Meta] Not configured — using mock for campaign "${campaign.name}"`);
+    for (const adSet of campaign.adSets) {
+      await prisma.adSet.update({
+        where: { id: adSet.id },
+        data: { platformAdsetId: `fb-adset-${Date.now()}` },
+      });
+    }
+    for (const creative of campaign.creatives) {
+      await prisma.adCreative.update({
+        where: { id: creative.id },
+        data: { platformCreativeId: `fb-creative-${Date.now()}` },
+      });
+    }
+    return `fb-campaign-${Date.now()}`;
+  }
 
-  // In production: create campaign → ad sets → upload creatives → ads via Facebook Marketing API v19
+  // 1. Create campaign on Meta
+  const platformCampaignId = await metaCreateCampaign({
+    name: campaign.name,
+    objective: campaign.objective,
+    status: 'PAUSED', // Start paused, activate after full setup
+  });
+  if (!platformCampaignId) throw new AppError(502, 'INTERNAL_ERROR', 'Création campagne Meta échouée');
+
+  // 2. Create ad sets
+  const targeting = campaign.targeting as Record<string, unknown> ?? {};
+  const META_PAGE_ID = process.env.META_PAGE_ID || '';
+
   for (const adSet of campaign.adSets) {
-    await prisma.adSet.update({
-      where: { id: adSet.id },
-      data: { platformAdsetId: `fb-adset-${Date.now()}` },
+    const adSetTargeting = (adSet.targeting as Record<string, unknown>) ?? targeting;
+    const platformAdSetId = await metaCreateAdSet({
+      campaignId: platformCampaignId,
+      name: adSet.name,
+      dailyBudget: Math.round(adSet.dailyBudget * 100), // EUR → cents
+      targeting: {
+        ageMin: (adSetTargeting.ageMin as number) ?? 25,
+        ageMax: (adSetTargeting.ageMax as number) ?? 55,
+        geoLocations: {
+          countries: (adSetTargeting.locations as string[]) ?? ['FR'],
+        },
+      },
+      status: 'PAUSED',
     });
-  }
-  for (const creative of campaign.creatives) {
-    await prisma.adCreative.update({
-      where: { id: creative.id },
-      data: { platformCreativeId: `fb-creative-${Date.now()}` },
-    });
+
+    if (platformAdSetId) {
+      await prisma.adSet.update({
+        where: { id: adSet.id },
+        data: { platformAdsetId: platformAdSetId },
+      });
+
+      // 3. Create creatives and ads for each ad set
+      for (const creative of campaign.creatives) {
+        const platformCreativeId = await metaCreateAdCreative({
+          name: `${creative.title} - ${adSet.name}`,
+          title: creative.title,
+          body: creative.body,
+          imageUrl: creative.imageUrl,
+          linkUrl: process.env.LANDING_PAGE_URL || 'https://synap6ia.com',
+          callToActionType: creative.callToActionType || 'LEARN_MORE',
+          pageId: META_PAGE_ID,
+        });
+
+        if (platformCreativeId) {
+          await prisma.adCreative.update({
+            where: { id: creative.id },
+            data: { platformCreativeId },
+          });
+
+          // Create the ad (links creative to ad set)
+          await metaCreateAd({
+            adSetId: platformAdSetId,
+            creativeId: platformCreativeId,
+            name: `${creative.title}`,
+            status: 'PAUSED',
+          });
+        }
+      }
+    }
   }
 
-  return `fb-campaign-${Date.now()}`;
+  // 4. Activate campaign
+  await updateCampaignStatus(platformCampaignId, 'ACTIVE');
+
+  return platformCampaignId;
 }
 
 // TikTok Ads API v1.3 (mock in dev)
@@ -344,21 +462,78 @@ export async function collectAdMetrics() {
   });
 
   const results: { campaignId: string; collected: boolean }[] = [];
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 24 * 3600_000).toISOString().slice(0, 10);
 
   for (const campaign of activeCampaigns) {
-    // Mock metrics collection (in production: call platform APIs)
-    console.log(`[DEV] Collecting ad metrics for campaign "${campaign.name}" (${campaign.platform})`);
+    let impressions = 0, clicks = 0, spend = 0, conversions = 0;
+    let cpc = 0, cpm = 0, ctr = 0, roas = 0;
 
-    const impressions = Math.floor(Math.random() * 10000) + 1000;
-    const clicks = Math.floor(impressions * (Math.random() * 0.05 + 0.01));
-    const spend = parseFloat((campaign.dailyBudget * (0.5 + Math.random() * 0.5)).toFixed(2));
-    const conversions = Math.floor(clicks * (Math.random() * 0.1));
+    if (isMetaConfigured() && campaign.platform === 'facebook' && campaign.platformCampaignId) {
+      // Real Meta Insights API
+      const insights = await getCampaignInsights(campaign.platformCampaignId, {
+        since: yesterday,
+        until: today,
+      });
 
-    const cpc = clicks > 0 ? parseFloat((spend / clicks).toFixed(2)) : 0;
-    const cpm = impressions > 0 ? parseFloat(((spend / impressions) * 1000).toFixed(2)) : 0;
-    const ctr = impressions > 0 ? parseFloat(((clicks / impressions) * 100).toFixed(2)) : 0;
-    const roas = spend > 0 ? parseFloat(((conversions * 50) / spend).toFixed(2)) : 0;
+      if (insights.length > 0) {
+        const insight = insights[0]!;
+        impressions = parseInt(insight.impressions || '0', 10);
+        clicks = parseInt(insight.clicks || '0', 10);
+        spend = parseFloat(insight.spend || '0');
+        cpc = parseFloat(insight.cpc || '0');
+        cpm = parseFloat(insight.cpm || '0');
+        ctr = parseFloat(insight.ctr || '0');
 
+        // Extract conversions from actions
+        const convAction = (insight.actions ?? []).find(
+          (a) => a.action_type === 'offsite_conversion.fb_pixel_lead' ||
+                 a.action_type === 'lead' ||
+                 a.action_type === 'onsite_conversion.messaging_conversation_started_7d',
+        );
+        conversions = convAction ? parseInt(convAction.value, 10) : 0;
+        roas = spend > 0 ? parseFloat(((conversions * 50) / spend).toFixed(2)) : 0;
+      }
+
+      // Also collect per-adset insights
+      for (const adSet of campaign.adSets) {
+        if (!adSet.platformAdsetId) continue;
+        const adSetInsights = await getAdSetInsights(adSet.platformAdsetId, {
+          since: yesterday,
+          until: today,
+        });
+        if (adSetInsights.length > 0) {
+          const asInsight = adSetInsights[0]!;
+          await prisma.adMetrics.create({
+            data: {
+              campaignId: campaign.id,
+              adSetId: adSet.id,
+              impressions: parseInt(asInsight.impressions || '0', 10),
+              clicks: parseInt(asInsight.clicks || '0', 10),
+              spend: parseFloat(asInsight.spend || '0'),
+              conversions: 0,
+              cpc: parseFloat(asInsight.cpc || '0'),
+              cpm: parseFloat(asInsight.cpm || '0'),
+              ctr: parseFloat(asInsight.ctr || '0'),
+              roas: 0,
+            },
+          });
+        }
+      }
+    } else {
+      // Mock metrics for non-Meta or unconfigured
+      console.log(`[Meta] Not configured — generating mock metrics for "${campaign.name}"`);
+      impressions = Math.floor(Math.random() * 10000) + 1000;
+      clicks = Math.floor(impressions * (Math.random() * 0.05 + 0.01));
+      spend = parseFloat((campaign.dailyBudget * (0.5 + Math.random() * 0.5)).toFixed(2));
+      conversions = Math.floor(clicks * (Math.random() * 0.1));
+      cpc = clicks > 0 ? parseFloat((spend / clicks).toFixed(2)) : 0;
+      cpm = impressions > 0 ? parseFloat(((spend / impressions) * 1000).toFixed(2)) : 0;
+      ctr = impressions > 0 ? parseFloat(((clicks / impressions) * 100).toFixed(2)) : 0;
+      roas = spend > 0 ? parseFloat(((conversions * 50) / spend).toFixed(2)) : 0;
+    }
+
+    // Store campaign-level metrics
     await prisma.adMetrics.create({
       data: {
         campaignId: campaign.id,
@@ -375,7 +550,7 @@ export async function collectAdMetrics() {
 
     // Anomaly detection
     const avgMetrics = await prisma.adMetrics.aggregate({
-      where: { campaignId: campaign.id },
+      where: { campaignId: campaign.id, adSetId: null },
       _avg: { cpc: true, roas: true },
     });
 
@@ -387,12 +562,20 @@ export async function collectAdMetrics() {
         text: `Anomalie CPC : "${campaign.name}" — CPC ${cpc} EUR (moyenne ${avgCpc.toFixed(2)} EUR)`,
       });
     }
-
     if (avgRoas > 0 && roas < avgRoas * 0.5) {
       await sendSlackNotification({
         text: `Anomalie ROAS : "${campaign.name}" — ROAS ${roas} (moyenne ${avgRoas.toFixed(2)})`,
       });
     }
+
+    // Real-time update
+    emitEvent('campaign:metrics', {
+      campaignId: campaign.id,
+      impressions,
+      clicks,
+      spend,
+      roas,
+    });
 
     results.push({ campaignId: campaign.id, collected: true });
   }
@@ -402,9 +585,9 @@ export async function collectAdMetrics() {
 
 // ─── AI Campaign Optimization (Story 8.7) ────────────────────
 
-export async function optimizeCampaigns(tenantId: string) {
+export async function optimizeCampaigns() {
   const activeCampaigns = await prisma.adCampaign.findMany({
-    where: { tenantId, status: 'active' },
+    where: { status: 'active' },
     include: {
       adSets: true,
       creatives: true,
@@ -457,7 +640,6 @@ Creatives: ${campaign.creatives.length} variantes`,
     // Log optimization in AiLearningLog
     await prisma.aiLearningLog.create({
       data: {
-        tenantId,
         agentType: 'amplification_engine',
         actionType: 'campaign_optimization',
         entityType: 'ad_campaign',
@@ -468,9 +650,33 @@ Creatives: ${campaign.creatives.length} variantes`,
       },
     });
 
-    // Apply actions (mock in dev — in production: call platform APIs)
+    // Apply optimization actions via platform APIs
     for (const action of parsed.actions) {
-      console.log(`[DEV] Optimization: ${action.type} — ${action.reason}`);
+      try {
+        if (campaign.platform === 'facebook' && isMetaConfigured()) {
+          if (action.type === 'pause_adset') {
+            const adSet = campaign.adSets.find((s) => s.name === action.target || s.id === action.target);
+            if (adSet?.platformAdsetId) {
+              await updateAdSetStatus(adSet.platformAdsetId, 'PAUSED');
+              await prisma.adSet.update({ where: { id: adSet.id }, data: { status: 'paused' } });
+            }
+          } else if (action.type === 'scale_budget') {
+            const adSet = campaign.adSets.find((s) => s.name === action.target || s.id === action.target);
+            if (adSet?.platformAdsetId) {
+              const newBudget = Math.round(adSet.dailyBudget * 1.3 * 100); // +30% in cents
+              await updateAdSetBudget(adSet.platformAdsetId, newBudget);
+              await prisma.adSet.update({ where: { id: adSet.id }, data: { dailyBudget: adSet.dailyBudget * 1.3 } });
+            }
+          } else if (action.type === 'pause_creative') {
+            // Pause ads using this creative (via ad set)
+            console.log(`[Optimization] Pause creative: ${action.target} — ${action.reason}`);
+          }
+        } else {
+          console.log(`[Optimization] ${action.type}: ${action.target} — ${action.reason}`);
+        }
+      } catch (err) {
+        console.error(`[Optimization] Failed to apply ${action.type}:`, err);
+      }
     }
 
     optimizations.push({
@@ -502,12 +708,10 @@ Creatives: ${campaign.creatives.length} variantes`,
 // ─── Campaign CRUD ───────────────────────────────────────────
 
 export async function listCampaigns(
-  tenantId: string,
   filters?: { brandId?: string; status?: string; platform?: string },
 ) {
   return prisma.adCampaign.findMany({
     where: {
-      tenantId,
       ...(filters?.brandId ? { brandId: filters.brandId } : {}),
       ...(filters?.status ? { status: filters.status } : {}),
       ...(filters?.platform ? { platform: filters.platform } : {}),
@@ -519,26 +723,32 @@ export async function listCampaigns(
   });
 }
 
-export async function getCampaignById(tenantId: string, id: string) {
+export async function getCampaignById(id: string) {
   const campaign = await prisma.adCampaign.findFirst({
-    where: { id, tenantId },
+    where: { id },
     include: { adSets: true, creatives: true, metrics: { orderBy: { collectedAt: 'desc' }, take: 30 } },
   });
   if (!campaign) throw new AppError(404, 'NOT_FOUND', 'Campagne introuvable');
   return campaign;
 }
 
-export async function pauseCampaign(tenantId: string, campaignId: string) {
+export async function pauseCampaign(campaignId: string) {
   const campaign = await prisma.adCampaign.findFirst({
-    where: { id: campaignId, tenantId, status: 'active' },
+    where: { id: campaignId, status: 'active' },
   });
   if (!campaign) throw new AppError(404, 'NOT_FOUND', 'Campagne introuvable ou non active');
 
-  // In production: pause via platform API
-  console.log(`[DEV] Pausing campaign "${campaign.name}" on ${campaign.platform}`);
+  // Pause on Meta if configured
+  if (campaign.platform === 'facebook' && campaign.platformCampaignId && isMetaConfigured()) {
+    await updateCampaignStatus(campaign.platformCampaignId, 'PAUSED');
+  }
 
-  return prisma.adCampaign.update({
+  const updated = await prisma.adCampaign.update({
     where: { id: campaignId },
     data: { status: 'paused' },
   });
+
+  emitEvent('campaign:paused', { campaignId, name: campaign.name });
+
+  return updated;
 }

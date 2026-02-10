@@ -2,9 +2,9 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../lib/errors';
 import { claudeGenerate, whisperTranscribe, dalleGenerate } from '../lib/ai';
-import { uploadFromUrl } from '../lib/minio';
 import { triggerWorkflow } from '../lib/n8n';
-import type { Platform } from '@synap6ia/shared';
+import { getFramework, getFrameworksForPlatform, buildFrameworkPrompt } from '../lib/copy-frameworks';
+import type { Platform, BrandVoiceConfig } from '@synap6ia/shared';
 
 const PLATFORM_LIMITS: Record<string, number> = {
   linkedin: 3000,
@@ -14,23 +14,49 @@ const PLATFORM_LIMITS: Record<string, number> = {
   tiktok: 2200,
 };
 
+// ─── Brand Voice Helper ──────────────────────────────────────
+
+function buildVoicePrompt(voice: BrandVoiceConfig | null, platform?: string): string {
+  if (!voice) return 'Voix de marque: professionnelle et engageante';
+
+  const override = platform ? voice.platformOverrides?.[platform] : undefined;
+
+  const tone = (override && typeof override === 'object' && override.tone) ? override.tone : voice.tone;
+  const formality = (override && typeof override === 'object' && override.formality) ? override.formality : voice.languageStyle.formality;
+  const emoji = (override && typeof override === 'object' && override.emojiUsage) ? override.emojiUsage : voice.languageStyle.emojiUsage;
+
+  const parts = [
+    `Ton: ${tone.join(', ')}`,
+    `Formalité: ${formality}`,
+    `Longueur de phrases: ${voice.languageStyle.sentenceLength}`,
+    `Humour: ${voice.languageStyle.humor}`,
+    `Émojis: ${emoji}`,
+    voice.persona ? `Persona: ${voice.persona.name} (${voice.persona.role}) — ${voice.persona.background}` : '',
+    voice.vocabulary.preferred.length > 0 ? `Vocabulaire privilégié: ${voice.vocabulary.preferred.join(', ')}` : '',
+    voice.vocabulary.avoided.length > 0 ? `Vocabulaire à éviter: ${voice.vocabulary.avoided.join(', ')}` : '',
+    voice.examples.good.length > 0 ? `Exemples de bon contenu:\n${voice.examples.good.map((e) => `  - "${e}"`).join('\n')}` : '',
+    voice.examples.bad.length > 0 ? `Exemples de contenu à éviter:\n${voice.examples.bad.map((e) => `  - "${e}"`).join('\n')}` : '',
+  ].filter(Boolean);
+
+  return `Voix de marque structurée:\n${parts.join('\n')}`;
+}
+
 // ─── Content Pillars ─────────────────────────────────────────
 
 export async function createPillar(
-  tenantId: string,
   data: { brandId: string; name: string; description?: string },
 ) {
-  const brand = await prisma.brand.findFirst({ where: { id: data.brandId, tenantId } });
+  const brand = await prisma.brand.findFirst({ where: { id: data.brandId } });
   if (!brand) throw new AppError(404, 'NOT_FOUND', 'Marque introuvable');
 
   return prisma.contentPillar.create({
-    data: { tenantId, brandId: data.brandId, name: data.name, description: data.description ?? null },
+    data: { brandId: data.brandId, name: data.name, description: data.description ?? null },
   });
 }
 
-export async function listPillars(tenantId: string, brandId: string) {
+export async function listPillars(brandId: string) {
   return prisma.contentPillar.findMany({
-    where: { tenantId, brandId },
+    where: { brandId },
     orderBy: { createdAt: 'desc' },
   });
 }
@@ -38,7 +64,6 @@ export async function listPillars(tenantId: string, brandId: string) {
 // ─── Content Inputs (Stories 3.1, 3.2) ───────────────────────
 
 export async function createInput(
-  tenantId: string,
   userId: string,
   data: {
     brandId: string;
@@ -48,12 +73,11 @@ export async function createInput(
     pillarId?: string;
   },
 ) {
-  const brand = await prisma.brand.findFirst({ where: { id: data.brandId, tenantId } });
+  const brand = await prisma.brand.findFirst({ where: { id: data.brandId } });
   if (!brand) throw new AppError(404, 'NOT_FOUND', 'Marque introuvable');
 
   const input = await prisma.contentInput.create({
     data: {
-      tenantId,
       brandId: data.brandId,
       createdById: userId,
       inputType: data.inputType,
@@ -67,7 +91,6 @@ export async function createInput(
   // Trigger n8n workflow MKT-101 asynchronously
   triggerWorkflow('mkt-101', {
     inputId: input.id,
-    tenantId,
     brandId: data.brandId,
     inputType: data.inputType,
   }).catch((err) => console.error('[n8n] MKT-101 trigger failed:', err));
@@ -76,7 +99,6 @@ export async function createInput(
 }
 
 export async function createAudioInput(
-  tenantId: string,
   userId: string,
   data: {
     brandId: string;
@@ -86,7 +108,7 @@ export async function createAudioInput(
   },
 ) {
   const brand = await prisma.brand.findFirst({
-    where: { id: data.brandId, tenantId },
+    where: { id: data.brandId },
     select: { id: true, name: true, brandVoice: true, targetAudience: true },
   });
   if (!brand) throw new AppError(404, 'NOT_FOUND', 'Marque introuvable');
@@ -112,7 +134,6 @@ export async function createAudioInput(
 
   const input = await prisma.contentInput.create({
     data: {
-      tenantId,
       brandId: data.brandId,
       createdById: userId,
       inputType: 'audio',
@@ -128,7 +149,6 @@ export async function createAudioInput(
 
   triggerWorkflow('mkt-101', {
     inputId: input.id,
-    tenantId,
     brandId: data.brandId,
     inputType: 'audio',
   }).catch((err) => console.error('[n8n] MKT-101 trigger failed:', err));
@@ -136,17 +156,17 @@ export async function createAudioInput(
   return input;
 }
 
-export async function listInputs(tenantId: string, brandId?: string) {
+export async function listInputs(brandId?: string) {
   return prisma.contentInput.findMany({
-    where: { tenantId, ...(brandId ? { brandId } : {}) },
+    where: { ...(brandId ? { brandId } : {}) },
     include: { _count: { select: { contentPieces: true } } },
     orderBy: { createdAt: 'desc' },
   });
 }
 
-export async function getInputById(tenantId: string, id: string) {
+export async function getInputById(id: string) {
   const input = await prisma.contentInput.findFirst({
-    where: { id, tenantId },
+    where: { id },
     include: { contentPieces: { orderBy: { createdAt: 'desc' } } },
   });
   if (!input) throw new AppError(404, 'NOT_FOUND', 'Content input introuvable');
@@ -155,9 +175,9 @@ export async function getInputById(tenantId: string, id: string) {
 
 // ─── AI Research & Strategy (Story 3.3) ──────────────────────
 
-export async function runAiResearch(tenantId: string, inputId: string) {
+export async function runAiResearch(inputId: string) {
   const input = await prisma.contentInput.findFirst({
-    where: { id: inputId, tenantId },
+    where: { id: inputId },
     include: {
       brand: {
         select: { name: true, brandVoice: true, targetAudience: true, contentGuidelines: true },
@@ -166,9 +186,10 @@ export async function runAiResearch(tenantId: string, inputId: string) {
   });
   if (!input) throw new AppError(404, 'NOT_FOUND', 'Content input introuvable');
 
+  const voice = input.brand.brandVoice as BrandVoiceConfig | null;
   const brandContext = [
     `Marque: ${input.brand.name}`,
-    input.brand.brandVoice ? `Voix de marque: ${JSON.stringify(input.brand.brandVoice)}` : '',
+    buildVoicePrompt(voice),
     input.brand.targetAudience ? `Audience cible: ${JSON.stringify(input.brand.targetAudience)}` : '',
     input.brand.contentGuidelines ? `Guidelines contenu: ${JSON.stringify(input.brand.contentGuidelines)}` : '',
   ].filter(Boolean).join('\n');
@@ -206,7 +227,6 @@ Réponds uniquement avec le JSON.`,
   // Trigger MKT-103 for content generation
   triggerWorkflow('mkt-103', {
     inputId,
-    tenantId,
     brandId: input.brandId,
     research,
   }).catch((err) => console.error('[n8n] MKT-103 trigger failed:', err));
@@ -217,12 +237,12 @@ Réponds uniquement avec le JSON.`,
 // ─── Content Generation (Story 3.4) ──────────────────────────
 
 export async function generateContentPiece(
-  tenantId: string,
   inputId: string,
   platform: Platform,
+  frameworkId?: string,
 ) {
   const input = await prisma.contentInput.findFirst({
-    where: { id: inputId, tenantId },
+    where: { id: inputId },
     include: {
       brand: { select: { id: true, name: true, brandVoice: true, targetAudience: true } },
     },
@@ -231,27 +251,50 @@ export async function generateContentPiece(
 
   const charLimit = PLATFORM_LIMITS[platform] ?? 2200;
   const research = (input.aiResearch as Record<string, unknown>) ?? {};
+  const voice = input.brand.brandVoice as BrandVoiceConfig | null;
+  const voicePrompt = buildVoicePrompt(voice, platform);
+
+  // Resolve framework
+  let frameworkPrompt = '';
+  let resolvedFrameworkId = frameworkId;
+  if (frameworkId) {
+    const fw = getFramework(frameworkId);
+    if (fw) {
+      frameworkPrompt = buildFrameworkPrompt(fw);
+    }
+  } else {
+    // Suggest best frameworks for platform and let Claude choose
+    const platformFrameworks = getFrameworksForPlatform(platform);
+    if (platformFrameworks.length > 0) {
+      frameworkPrompt = `Choisis le meilleur framework parmi: ${platformFrameworks.map((f) => f.id).join(', ')}. Indique-le dans le champ "framework" de la réponse.`;
+    }
+  }
 
   const aiResponse = await claudeGenerate(
-    `Tu es un rédacteur marketing expert. Génère du contenu pour ${platform} en respectant:
-- Limite: ${charLimit} caractères max pour le body
-- Voix de marque: ${JSON.stringify(input.brand.brandVoice ?? 'professionnelle et engageante')}
-- Audience: ${JSON.stringify(input.brand.targetAudience ?? 'PME Afrique de l\'Ouest + France')}
-${platform === 'tiktok' ? '- Format: script vidéo 30-60 secondes' : ''}
+    `Tu es un redacteur marketing expert B2B tech. Genere du contenu pour ${platform} en respectant:
+- Limite: ${charLimit} caracteres max pour le body
+- ${voicePrompt}
+- Audience: ${JSON.stringify(input.brand.targetAudience ?? 'CTOs, DSI, responsables marketing de PME en Afrique de l\'Ouest et France')}
+- Contexte: solutions tech pour PME (cybersecurite, automatisation marketing, DevOps)
+${platform === 'linkedin' ? '- Format: post long avec hook accrocheur, bullet points, CTA clair' : ''}
+${platform === 'twitter' ? '- Format: tweet percutant, max 280 chars, 1-2 hashtags' : ''}
+${platform === 'tiktok' ? '- Format: script video 30-60 secondes' : ''}
+${frameworkPrompt ? `\n${frameworkPrompt}` : ''}
 
 Retourne un JSON avec:
 {
   "title": "titre accrocheur",
   "body": "contenu complet (max ${charLimit} car)",
   "hashtags": ["#tag1", "#tag2", "#tag3"],
-  "callToAction": "appel à l'action",
-  "mediaPrompt": "description détaillée pour générer un visuel avec DALL-E"
+  "callToAction": "appel a l'action",
+  "mediaPrompt": "description detaillee pour generer un visuel",
+  "framework": "${frameworkId || 'chosen_framework_id'}"
 }
-Réponds uniquement avec le JSON.`,
+Reponds uniquement avec le JSON.`,
     `Contexte recherche: ${JSON.stringify(research)}\n\nInput original: ${input.rawContent}`,
   );
 
-  let content: { title: string; body: string; hashtags: string[]; callToAction: string; mediaPrompt: string };
+  let content: { title: string; body: string; hashtags: string[]; callToAction: string; mediaPrompt: string; framework?: string };
   try {
     content = JSON.parse(aiResponse);
   } catch {
@@ -264,9 +307,12 @@ Réponds uniquement avec le JSON.`,
     };
   }
 
+  if (!resolvedFrameworkId && content.framework) {
+    resolvedFrameworkId = content.framework;
+  }
+
   const piece = await prisma.contentPiece.create({
     data: {
-      tenantId,
       brandId: input.brand.id,
       contentInputId: inputId,
       platform,
@@ -275,6 +321,7 @@ Réponds uniquement avec le JSON.`,
       hashtags: content.hashtags,
       callToAction: content.callToAction || null,
       mediaPrompt: content.mediaPrompt || null,
+      framework: resolvedFrameworkId || null,
       status: 'review',
     },
   });
@@ -284,10 +331,10 @@ Réponds uniquement avec le JSON.`,
 
 // ─── Visual Generation (Story 3.5) ───────────────────────────
 
-export async function generateVisual(tenantId: string, pieceId: string) {
+export async function generateVisual(pieceId: string) {
   const piece = await prisma.contentPiece.findFirst({
-    where: { id: pieceId, tenantId },
-    include: { brand: { select: { id: true, organizationId: true, visualGuidelines: true } } },
+    where: { id: pieceId },
+    include: { brand: { select: { id: true, visualGuidelines: true } } },
   });
   if (!piece) throw new AppError(404, 'NOT_FOUND', 'Content piece introuvable');
 
@@ -302,21 +349,15 @@ export async function generateVisual(tenantId: string, pieceId: string) {
   // Generate with DALL-E
   const imageUrl = await dalleGenerate(prompt, { size });
 
-  // Upload to MinIO
-  const date = new Date().toISOString().slice(0, 10);
-  const objectPath = `${piece.brand.organizationId}/originals/${date}_${pieceId}.png`;
-  const storedUrl = await uploadFromUrl(objectPath, imageUrl);
-
-  // Update piece with media URL
+  // Update piece with media URL (use DALL-E URL directly)
   const updated = await prisma.contentPiece.update({
     where: { id: pieceId },
-    data: { mediaUrl: storedUrl },
+    data: { mediaUrl: imageUrl },
   });
 
   // Trigger MKT-104 for approval
   triggerWorkflow('mkt-104', {
     contentPieceId: pieceId,
-    tenantId,
     brandId: piece.brandId,
   }).catch((err) => console.error('[n8n] MKT-104 trigger failed:', err));
 
@@ -325,10 +366,9 @@ export async function generateVisual(tenantId: string, pieceId: string) {
 
 // ─── Content Pieces CRUD ─────────────────────────────────────
 
-export async function listPieces(tenantId: string, filters?: { brandId?: string; status?: string }) {
+export async function listPieces(filters?: { brandId?: string; status?: string }) {
   return prisma.contentPiece.findMany({
     where: {
-      tenantId,
       ...(filters?.brandId ? { brandId: filters.brandId } : {}),
       ...(filters?.status ? { status: filters.status } : {}),
     },
@@ -340,9 +380,9 @@ export async function listPieces(tenantId: string, filters?: { brandId?: string;
   });
 }
 
-export async function getPieceById(tenantId: string, id: string) {
+export async function getPieceById(id: string) {
   const piece = await prisma.contentPiece.findFirst({
-    where: { id, tenantId },
+    where: { id },
     include: {
       brand: { select: { id: true, name: true } },
       contentInput: true,
@@ -353,8 +393,8 @@ export async function getPieceById(tenantId: string, id: string) {
   return piece;
 }
 
-export async function updatePieceStatus(tenantId: string, id: string, status: string) {
-  const piece = await prisma.contentPiece.findFirst({ where: { id, tenantId } });
+export async function updatePieceStatus(id: string, status: string) {
+  const piece = await prisma.contentPiece.findFirst({ where: { id } });
   if (!piece) throw new AppError(404, 'NOT_FOUND', 'Content piece introuvable');
 
   return prisma.contentPiece.update({
@@ -364,11 +404,10 @@ export async function updatePieceStatus(tenantId: string, id: string, status: st
 }
 
 export async function updatePiece(
-  tenantId: string,
   id: string,
   data: { title?: string; body?: string; hashtags?: string[]; callToAction?: string },
 ) {
-  const piece = await prisma.contentPiece.findFirst({ where: { id, tenantId } });
+  const piece = await prisma.contentPiece.findFirst({ where: { id } });
   if (!piece) throw new AppError(404, 'NOT_FOUND', 'Content piece introuvable');
 
   return prisma.contentPiece.update({

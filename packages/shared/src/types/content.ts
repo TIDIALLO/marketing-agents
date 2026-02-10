@@ -16,7 +16,6 @@ export type SignalType = 'high_engagement' | 'viral_potential' | 'conversion_dri
 
 export interface ContentInput {
   id: string;
-  tenantId: string;
   brandId: string;
   inputType: ContentInputType;
   rawContent: string;
@@ -30,7 +29,6 @@ export interface ContentInput {
 
 export interface ContentPiece {
   id: string;
-  tenantId: string;
   brandId: string;
   contentInputId: string | null;
   parentId: string | null;

@@ -2,8 +2,7 @@
 
 export interface DailyAnalytics {
   id: string;
-  tenantId: string;
-  organizationId: string;
+  brandId: string;
   date: string;
   contentsPublished: number;
   totalImpressions: number;
@@ -25,7 +24,6 @@ export type InsightType =
 
 export interface AiLearningLog {
   id: string;
-  tenantId: string;
   insightType: InsightType;
   description: string;
   confidence: number;

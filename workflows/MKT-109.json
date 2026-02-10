@@ -1,0 +1,152 @@
+{
+  "name": "MKT-109 Winning Signal Amplification",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mkt-109",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "id": "trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nfor (const item of items) {\n  if (!item.json.signalId || !item.json.contentPieceId) {\n    throw new Error('Missing required fields: signalId, contentPieceId');\n  }\n}\nreturn items;"
+      },
+      "id": "validate",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst item = items[0];\nconsole.log(`Amplifying signal ${item.json.signalId} for content piece ${item.json.contentPieceId}`);\nreturn [{ json: { signalId: item.json.signalId, contentPieceId: item.json.contentPieceId, action: 'amplify' } }];"
+      },
+      "id": "prepare-amplification",
+      "name": "Prepare Amplification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://mkt-api:4000/api/internal/content/generate/{{ $json.contentPieceId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.MKT_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ signalId: $json.signalId, amplification: true }) }}",
+        "options": {}
+      },
+      "id": "generate-amplified",
+      "name": "Generate Amplified Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mkt-api:4000/api/internal/approval/submit",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.MKT_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ entityId: $json.data?.contentPieceId || $json.contentPieceId, entityType: 'content_piece', priority: 2 }) }}",
+        "options": {}
+      },
+      "id": "submit-approval",
+      "name": "Submit for Approval",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [250, 600]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mkt-api:4000/api/webhooks/n8n-error",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.MKT_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ workflow: 'MKT-109', error: $json.execution?.error?.message || 'Unknown error', executionId: $json.execution?.id }) }}",
+        "options": {}
+      },
+      "id": "report-error",
+      "name": "Report Error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 600]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [{ "node": "Validate Input", "type": "main", "index": 0 }]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [{ "node": "Prepare Amplification", "type": "main", "index": 0 }]
+      ]
+    },
+    "Prepare Amplification": {
+      "main": [
+        [{ "node": "Generate Amplified Content", "type": "main", "index": 0 }]
+      ]
+    },
+    "Generate Amplified Content": {
+      "main": [
+        [{ "node": "Submit for Approval", "type": "main", "index": 0 }]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [{ "node": "Report Error", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "content-flywheel" }
+  ]
+}

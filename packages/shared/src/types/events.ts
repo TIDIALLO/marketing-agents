@@ -124,6 +124,4 @@ export interface ServerToClientEvents {
 }
 
 export interface ClientToServerEvents {
-  'join:tenant': (tenantId: string) => void;
-  'leave:tenant': (tenantId: string) => void;
 }

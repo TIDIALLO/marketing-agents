@@ -50,7 +50,6 @@ describe('authMiddleware', () => {
   it('should set req.user and call next() for valid tokens', () => {
     const payload: JwtPayload = {
       userId: 'u-1',
-      tenantId: 't-1',
       role: 'admin',
       email: 'test@synap6ia.com',
     };
@@ -62,7 +61,6 @@ describe('authMiddleware', () => {
     expect(next).toHaveBeenCalledWith();
     expect(req.user).toBeDefined();
     expect(req.user!.userId).toBe('u-1');
-    expect(req.user!.tenantId).toBe('t-1');
     expect(req.user!.role).toBe('admin');
   });
 });

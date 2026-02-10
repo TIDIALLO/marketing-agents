@@ -1,0 +1,109 @@
+{
+  "name": "MKT-206 AI Campaign Optimization",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 10 * * *"
+            }
+          ]
+        }
+      },
+      "id": "trigger",
+      "name": "Cron Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mkt-api:4000/api/internal/advertising/optimize",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.MKT_API_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "optimize-campaigns",
+      "name": "AI Optimize Campaigns",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst actions = items[0]?.json?.data?.actions || [];\nconsole.log(`AI optimization complete: ${actions.length} actions taken`);\nactions.forEach(a => console.log(`  ${a.type}: ${a.reason}`));\nreturn items;"
+      },
+      "id": "log-optimizations",
+      "name": "Log Optimizations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [250, 600]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mkt-api:4000/api/webhooks/n8n-error",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.MKT_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ workflow: 'MKT-206', error: $json.execution?.error?.message || 'Unknown error', executionId: $json.execution?.id }) }}",
+        "options": {}
+      },
+      "id": "report-error",
+      "name": "Report Error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 600]
+    }
+  ],
+  "connections": {
+    "Cron Trigger": {
+      "main": [
+        [{ "node": "AI Optimize Campaigns", "type": "main", "index": 0 }]
+      ]
+    },
+    "AI Optimize Campaigns": {
+      "main": [
+        [{ "node": "Log Optimizations", "type": "main", "index": 0 }]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [{ "node": "Report Error", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "amplification-engine" }
+  ]
+}

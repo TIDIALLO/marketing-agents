@@ -15,7 +15,6 @@ function hashRefreshToken(token: string): string {
 
 function sanitizeUser(user: {
   id: string;
-  tenantId: string;
   email: string;
   firstName: string;
   lastName: string;
@@ -23,7 +22,6 @@ function sanitizeUser(user: {
 }) {
   return {
     id: user.id,
-    tenantId: user.tenantId,
     email: user.email,
     firstName: user.firstName,
     lastName: user.lastName,
@@ -33,13 +31,11 @@ function sanitizeUser(user: {
 
 function buildJwtPayload(user: {
   id: string;
-  tenantId: string;
   role: string;
   email: string;
 }): JwtPayload {
   return {
     userId: user.id,
-    tenantId: user.tenantId,
     role: user.role as Role,
     email: user.email,
   };
@@ -65,11 +61,8 @@ export async function register({
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      const tenant = await tx.tenant.create({ data: {} });
-
       const user = await tx.platformUser.create({
         data: {
-          tenantId: tenant.id,
           email,
           passwordHash,
           firstName,
@@ -161,7 +154,7 @@ export async function logout(userId: string) {
 }
 
 const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
-const APP_URL = process.env.APP_URL || 'http://localhost:3000';
+const APP_URL = process.env.APP_URL || 'http://localhost:3100';
 
 function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');

@@ -14,8 +14,6 @@ router.get(
   '/stream',
   requirePermission('content:view'),
   (req, res) => {
-    const tenantId = req.user!.tenantId;
-
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
@@ -26,7 +24,7 @@ router.get(
     // Send initial data immediately
     const sendKPIs = async () => {
       try {
-        const data = await reportingService.getStreamingKPIs(tenantId);
+        const data = await reportingService.getStreamingKPIs();
         res.write(`data: ${JSON.stringify(data)}\n\n`);
       } catch (err) {
         res.write(`event: error\ndata: ${JSON.stringify({ message: 'KPI fetch failed' })}\n\n`);
@@ -42,6 +40,18 @@ router.get(
   },
 );
 
+// ─── This Week Overview ──────────────────────────────────────
+
+// GET /api/analytics/this-week — actionable overview for the current week
+router.get(
+  '/this-week',
+  requirePermission('content:view'),
+  asyncHandler(async (_req, res) => {
+    const data = await reportingService.getThisWeekOverview();
+    res.json({ success: true, data });
+  }),
+);
+
 // ─── Dashboard (Story 5.5) ──────────────────────────────────
 
 // GET /api/analytics/dashboard — overview data
@@ -49,7 +59,7 @@ router.get(
   '/dashboard',
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
-    const data = await analyticsService.getDashboardData(req.user!.tenantId, {
+    const data = await analyticsService.getDashboardData({
       brandId: req.query.brandId as string | undefined,
       platform: req.query.platform as string | undefined,
       from: req.query.from ? new Date(req.query.from as string) : undefined,
@@ -64,7 +74,7 @@ router.get(
   '/top-posts',
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
-    const posts = await analyticsService.getTopPosts(req.user!.tenantId, {
+    const posts = await analyticsService.getTopPosts({
       brandId: req.query.brandId as string | undefined,
       platform: req.query.platform as string | undefined,
       from: req.query.from ? new Date(req.query.from as string) : undefined,
@@ -80,7 +90,7 @@ router.get(
   '/trends',
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
-    const trends = await analyticsService.getTrends(req.user!.tenantId, {
+    const trends = await analyticsService.getTrends({
       brandId: req.query.brandId as string | undefined,
       platform: req.query.platform as string | undefined,
       from: req.query.from ? new Date(req.query.from as string) : undefined,
@@ -97,7 +107,6 @@ router.get<{ id: string }>(
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
     const metrics = await analyticsService.getPieceMetricsHistory(
-      req.user!.tenantId,
       req.params.id,
     );
     res.json({ success: true, data: metrics });
@@ -111,7 +120,7 @@ router.get(
   '/signals',
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
-    const signals = await metricsService.listSignals(req.user!.tenantId, {
+    const signals = await metricsService.listSignals({
       brandId: req.query.brandId as string | undefined,
       signalType: req.query.signalType as string | undefined,
     });
@@ -158,7 +167,7 @@ router.post(
   '/weekly-report',
   requirePermission('content:approve'),
   asyncHandler(async (req, res) => {
-    const result = await reportingService.generateWeeklyReport(req.user!.tenantId);
+    const result = await reportingService.generateWeeklyReport();
     res.json({ success: true, data: result });
   }),
 );

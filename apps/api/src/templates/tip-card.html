@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: {{_width}}px; height: {{_height}}px;
+    display: flex; align-items: center; justify-content: center;
+    background: white;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    overflow: hidden;
+  }
+  .card { padding: 60px; width: 85%; }
+  .tip-number {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 64px; height: 64px; border-radius: 16px;
+    background: {{brandColor}}; color: white;
+    font-size: 28px; font-weight: 900; margin-bottom: 24px;
+  }
+  .title { font-size: 36px; font-weight: 800; color: #1a1a2e; margin-bottom: 16px; line-height: 1.2; }
+  .description { font-size: 22px; color: #4a5568; line-height: 1.5; }
+  .accent-bar { width: 80px; height: 4px; background: {{brandColor}}; margin-bottom: 24px; border-radius: 2px; }
+  .brand { position: absolute; bottom: 24px; right: 32px; font-size: 16px; color: #999; font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="tip-number">{{tipNumber}}</div>
+    <div class="accent-bar"></div>
+    <h2 class="title">{{title}}</h2>
+    <p class="description">{{description}}</p>
+  </div>
+  <div class="brand">{{brandName}}</div>
+</body>
+</html>

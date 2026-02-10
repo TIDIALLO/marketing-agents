@@ -38,10 +38,7 @@ router.post(
   requirePermission('content:create'),
   validate(ingestLeadSchema),
   asyncHandler(async (req, res) => {
-    const lead = await leadService.ingestLead({
-      tenantId: req.user!.tenantId,
-      ...req.body,
-    });
+    const lead = await leadService.ingestLead(req.body);
     res.status(201).json({ success: true, data: lead });
   }),
 );
@@ -51,7 +48,7 @@ router.get(
   '/',
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
-    const leads = await leadService.listLeads(req.user!.tenantId, {
+    const leads = await leadService.listLeads({
       brandId: req.query.brandId as string | undefined,
       temperature: req.query.temperature as string | undefined,
       status: req.query.status as string | undefined,
@@ -66,7 +63,7 @@ router.get(
   '/pipeline',
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
-    const funnel = await leadService.getPipelineFunnel(req.user!.tenantId, {
+    const funnel = await leadService.getPipelineFunnel({
       brandId: req.query.brandId as string | undefined,
       from: req.query.from ? new Date(req.query.from as string) : undefined,
       to: req.query.to ? new Date(req.query.to as string) : undefined,
@@ -80,7 +77,7 @@ router.get<{ id: string }>(
   '/:id',
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
-    const lead = await leadService.getLeadById(req.user!.tenantId, req.params.id);
+    const lead = await leadService.getLeadById(req.params.id);
     res.json({ success: true, data: lead });
   }),
 );
@@ -91,7 +88,7 @@ router.put<{ id: string }>(
   requirePermission('content:create'),
   validate(updateLeadSchema),
   asyncHandler(async (req, res) => {
-    const lead = await leadService.updateLead(req.user!.tenantId, req.params.id, req.body);
+    const lead = await leadService.updateLead(req.params.id, req.body);
     res.json({ success: true, data: lead });
   }),
 );
@@ -103,7 +100,7 @@ router.post<{ id: string }>(
   '/:id/score',
   requirePermission('content:create'),
   asyncHandler(async (req, res) => {
-    const result = await leadService.scoreLead(req.user!.tenantId, req.params.id);
+    const result = await leadService.scoreLead(req.params.id);
     res.json({ success: true, data: result });
   }),
 );
@@ -113,7 +110,7 @@ router.post<{ id: string }>(
   '/:id/book',
   requirePermission('content:create'),
   asyncHandler(async (req, res) => {
-    const booking = await leadService.createBookingProposal(req.user!.tenantId, req.params.id);
+    const booking = await leadService.createBookingProposal(req.params.id);
     res.status(201).json({ success: true, data: booking });
   }),
 );
@@ -123,7 +120,18 @@ router.post<{ id: string }>(
   '/bookings/:id/briefing',
   requirePermission('content:create'),
   asyncHandler(async (req, res) => {
-    const booking = await leadService.generateSalesBriefing(req.user!.tenantId, req.params.id);
+    const booking = await leadService.generateSalesBriefing(req.params.id);
+    res.json({ success: true, data: booking });
+  }),
+);
+
+// POST /api/leads/bookings/:id/confirm — confirm booking slot (Cal.com)
+router.post<{ id: string }>(
+  '/bookings/:id/confirm',
+  requirePermission('content:create'),
+  validate(z.object({ slotIndex: z.number().int().min(0) })),
+  asyncHandler(async (req, res) => {
+    const booking = await leadService.confirmBooking(req.params.id, req.body.slotIndex);
     res.json({ success: true, data: booking });
   }),
 );

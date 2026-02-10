@@ -6,7 +6,7 @@ import type { JwtPayload } from '@synap6ia/shared';
 
 function createReqWithRole(role: JwtPayload['role']): Request {
   return {
-    user: { userId: 'u-1', tenantId: 't-1', role, email: 'test@synap6ia.com' },
+    user: { userId: 'u-1', role, email: 'test@synap6ia.com' },
   } as unknown as Request;
 }
 
@@ -50,8 +50,8 @@ describe('requirePermission', () => {
     next = vi.fn();
   });
 
-  it('should allow owner to manage tenant', () => {
-    const middleware = requirePermission('tenant:manage');
+  it('should allow owner to manage brands', () => {
+    const middleware = requirePermission('brands:manage');
     middleware(createReqWithRole('owner'), mockRes, next);
     expect(next).toHaveBeenCalledWith();
   });
@@ -80,8 +80,8 @@ describe('requirePermission', () => {
     }
   });
 
-  it('should deny editor from inviting users', () => {
-    const middleware = requirePermission('users:invite');
+  it('should deny editor from managing social settings', () => {
+    const middleware = requirePermission('settings:social');
     middleware(createReqWithRole('editor'), mockRes, next);
 
     const err = (next as ReturnType<typeof vi.fn>).mock.calls[0]![0] as AppError;

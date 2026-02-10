@@ -5,7 +5,7 @@ import { sendSlackNotification } from '../lib/slack';
 import { sendApprovalEmail, sendApprovalReminderEmail } from '../lib/email';
 import { triggerWorkflow } from '../lib/n8n';
 
-const APP_URL = process.env.APP_URL || 'http://localhost:3000';
+const APP_URL = process.env.APP_URL || 'http://localhost:3100';
 const TOKEN_EXPIRY_HOURS = 72;
 const MAX_REMINDERS = 3;
 const REMINDER_AFTER_HOURS = 24;
@@ -17,7 +17,6 @@ function hashToken(raw: string): string {
 // ─── Submit for Approval (Stories 4.1, 4.2) ──────────────────
 
 export async function submitForApproval(
-  tenantId: string,
   entityType: string,
   entityId: string,
   assigneeId?: string,
@@ -25,7 +24,7 @@ export async function submitForApproval(
 ) {
   // Prevent duplicate pending approvals
   const existing = await prisma.approvalQueue.findFirst({
-    where: { tenantId, entityType, entityId, status: 'pending' },
+    where: { entityType, entityId, status: 'pending' },
   });
   if (existing) {
     throw new AppError(409, 'CONFLICT', 'Une approbation est déjà en attente pour cet élément');
@@ -36,7 +35,6 @@ export async function submitForApproval(
 
   const approval = await prisma.approvalQueue.create({
     data: {
-      tenantId,
       entityType,
       entityId,
       assigneeId: assigneeId ?? null,
@@ -54,7 +52,7 @@ export async function submitForApproval(
   // Send notifications for content pieces
   if (entityType === 'content_piece') {
     const piece = await prisma.contentPiece.findFirst({
-      where: { id: entityId, tenantId },
+      where: { id: entityId },
       include: { brand: { select: { name: true } } },
     });
 
@@ -141,7 +139,6 @@ export async function resolveByToken(rawToken: string, action: string) {
     if (resolution === 'approved') {
       triggerWorkflow('mkt-106', {
         contentPieceId: approval.entityId,
-        tenantId: approval.tenantId,
       }).catch((err) => console.error('[n8n] MKT-106 trigger failed:', err));
     }
   }
@@ -152,13 +149,12 @@ export async function resolveByToken(rawToken: string, action: string) {
 // ─── Resolve by ID (authenticated) ──────────────────────────
 
 export async function resolveById(
-  tenantId: string,
   approvalId: string,
   action: string,
   resolvedBy: string,
 ) {
   const approval = await prisma.approvalQueue.findFirst({
-    where: { id: approvalId, tenantId, status: 'pending' },
+    where: { id: approvalId, status: 'pending' },
   });
   if (!approval) throw new AppError(404, 'NOT_FOUND', 'Approbation introuvable ou déjà traitée');
 
@@ -178,7 +174,6 @@ export async function resolveById(
     if (resolution === 'approved') {
       triggerWorkflow('mkt-106', {
         contentPieceId: approval.entityId,
-        tenantId,
       }).catch((err) => console.error('[n8n] MKT-106 trigger failed:', err));
     }
   }
@@ -189,12 +184,10 @@ export async function resolveById(
 // ─── List & Get ──────────────────────────────────────────────
 
 export async function listApprovals(
-  tenantId: string,
   filters?: { status?: string; entityType?: string },
 ) {
   return prisma.approvalQueue.findMany({
     where: {
-      tenantId,
       ...(filters?.status ? { status: filters.status } : {}),
       ...(filters?.entityType ? { entityType: filters.entityType } : {}),
     },
@@ -202,8 +195,8 @@ export async function listApprovals(
   });
 }
 
-export async function getApprovalById(tenantId: string, id: string) {
-  const approval = await prisma.approvalQueue.findFirst({ where: { id, tenantId } });
+export async function getApprovalById(id: string) {
+  const approval = await prisma.approvalQueue.findFirst({ where: { id } });
   if (!approval) throw new AppError(404, 'NOT_FOUND', 'Approbation introuvable');
   return approval;
 }

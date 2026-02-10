@@ -1,0 +1,207 @@
+{
+  "name": "MKT-203 Ad Approval Gate",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mkt-203",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "id": "trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nfor (const item of items) {\n  if (!item.json.campaignId) {\n    throw new Error('Missing required field: campaignId');\n  }\n}\nreturn items;"
+      },
+      "id": "validate",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mkt-api:4000/api/internal/advertising/approval-gate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.MKT_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ campaignId: $json.campaignId, decision: $json.decision }) }}",
+        "options": {}
+      },
+      "id": "process-approval",
+      "name": "Process Approval Decision",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "output": 0,
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.data?.decision }}",
+                    "value2": "approved"
+                  }
+                ]
+              }
+            },
+            {
+              "output": 1,
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.data?.decision }}",
+                    "value2": "modified"
+                  }
+                ]
+              }
+            },
+            {
+              "output": 2,
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.data?.decision }}",
+                    "value2": "rejected"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "id": "switch-decision",
+      "name": "Switch Decision",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://mkt-api:4000/api/internal/advertising/launch/{{ $json.data?.campaignId || $json.campaignId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.MKT_API_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "trigger-launch",
+      "name": "Trigger MKT-204 Launch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1100, 150]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconsole.log('Campaign modifications requested, re-notifying for review');\nreturn items;"
+      },
+      "id": "handle-modified",
+      "name": "Handle Modified",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconsole.log('Campaign rejected, archiving');\nreturn items;"
+      },
+      "id": "handle-rejected",
+      "name": "Handle Rejected",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 450]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [250, 650]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mkt-api:4000/api/webhooks/n8n-error",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.MKT_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ workflow: 'MKT-203', error: $json.execution?.error?.message || 'Unknown error', executionId: $json.execution?.id }) }}",
+        "options": {}
+      },
+      "id": "report-error",
+      "name": "Report Error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 650]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [{ "node": "Validate Input", "type": "main", "index": 0 }]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [{ "node": "Process Approval Decision", "type": "main", "index": 0 }]
+      ]
+    },
+    "Process Approval Decision": {
+      "main": [
+        [{ "node": "Switch Decision", "type": "main", "index": 0 }]
+      ]
+    },
+    "Switch Decision": {
+      "main": [
+        [{ "node": "Trigger MKT-204 Launch", "type": "main", "index": 0 }],
+        [{ "node": "Handle Modified", "type": "main", "index": 0 }],
+        [{ "node": "Handle Rejected", "type": "main", "index": 0 }]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [{ "node": "Report Error", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "amplification-engine" }
+  ]
+}

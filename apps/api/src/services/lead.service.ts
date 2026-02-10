@@ -4,14 +4,18 @@ import { AppError } from '../lib/errors';
 import { claudeGenerate } from '../lib/ai';
 import { publishEvent } from '../lib/redis';
 import { sendSlackNotification } from '../lib/slack';
-import { emitToTenant } from '../lib/socket';
+import { emitEvent } from '../lib/socket';
 import { triggerWorkflow } from '../lib/n8n';
 import { sendLeadProposalEmail } from '../lib/email';
+import {
+  getAvailableSlots as getCalSlots,
+  createBooking as createCalBooking,
+  type AvailableSlot,
+} from '../lib/calcom';
 
 // ─── Lead Ingestion (Story 6.1) ──────────────────────────────
 
 interface LeadInput {
-  tenantId: string;
   brandId: string;
   firstName: string;
   lastName: string;
@@ -39,10 +43,10 @@ export async function ingestLead(input: LeadInput) {
   const email = normalizeEmail(input.email);
   const phone = normalizePhone(input.phone);
 
-  // Story 6.2: Deduplication by email (tenant-scoped)
+  // Story 6.2: Deduplication by email (brand-scoped)
   const existing = await prisma.lead.findFirst({
     where: {
-      tenantId: input.tenantId,
+      brandId: input.brandId,
       OR: [
         { email },
         ...(phone ? [{ phone }] : []),
@@ -75,7 +79,6 @@ export async function ingestLead(input: LeadInput) {
   } else {
     lead = await prisma.lead.create({
       data: {
-        tenantId: input.tenantId,
         brandId: input.brandId,
         firstName: input.firstName,
         lastName: input.lastName,
@@ -93,10 +96,11 @@ export async function ingestLead(input: LeadInput) {
     });
   }
 
-  // Trigger qualification workflow MKT-302
+  // Fire-and-forget: scoring + n8n workflow
+  scoreLead(lead.id).catch((err) => console.error('[Auto-score]', err));
+
   triggerWorkflow('mkt-302', {
     leadId: lead.id,
-    tenantId: lead.tenantId,
     brandId: lead.brandId,
     isNew: !existing,
   }).catch((err) => console.error('[n8n] MKT-302 trigger failed:', err));
@@ -106,24 +110,26 @@ export async function ingestLead(input: LeadInput) {
 
 // ─── AI Lead Scoring & Qualification (Story 6.3) ─────────────
 
-export async function scoreLead(tenantId: string, leadId: string) {
+export async function scoreLead(leadId: string) {
   const lead = await prisma.lead.findFirst({
-    where: { id: leadId, tenantId },
+    where: { id: leadId },
   });
   if (!lead) throw new AppError(404, 'NOT_FOUND', 'Lead introuvable');
 
   const aiResponse = await claudeGenerate(
-    `Tu es un expert en qualification de leads B2B pour des PME en Afrique de l'Ouest et France.
-Score ce lead de 0 à 100 selon ces critères:
-- Complétude du profil (nom, email, téléphone, entreprise) : 20 pts
-- Qualité de la source (ad > webinar > referral > form > csv) : 20 pts
-- Taille/type entreprise : 20 pts
-- Urgence et pain points détectés : 20 pts
-- Budget potentiel : 20 pts
+    `Tu es un expert qualification leads B2B tech.
+Produits: SOC Autopilot Hub (plateforme SOC automatisee pour PME), outils DevOps/cyber, solutions marketing AI.
+Cible: CTOs, CISOs, DSI, responsables marketing de PME en Afrique de l'Ouest (Senegal, Cote d'Ivoire) et France.
+Criteres de scoring (0 a 100):
+- Completude du profil (nom, email, telephone, entreprise) : 20 pts
+- Qualite de la source (ad > webinar > referral > form > csv) : 20 pts
+- Taille/type entreprise et secteur (tech, finance, telco = bonus) : 20 pts
+- Urgence detectee et pain points (cybersecurite, marketing, automatisation) : 20 pts
+- Budget potentiel et maturite technologique : 20 pts
 
-Retourne un JSON: { "score": 75, "temperature": "hot"|"warm"|"cold", "reasoning": "explication courte", "painPoints": ["point1"], "suggestedProduct": "produit recommandé" }
+Retourne un JSON: { "score": 75, "temperature": "hot"|"warm"|"cold", "reasoning": "explication courte", "painPoints": ["point1"], "suggestedProduct": "produit recommande" }
 Rappel: hot >= 70, warm >= 40, cold < 40
-Réponds uniquement avec le JSON.`,
+Reponds uniquement avec le JSON.`,
     `Lead:
 Nom: ${lead.firstName} ${lead.lastName}
 Email: ${lead.email}
@@ -152,13 +158,12 @@ RGPD: ${lead.gdprConsent ? 'oui' : 'non'}`,
   // Publish to Redis for inter-agent communication
   await publishEvent('mkt:agent:3:new_lead', {
     leadId: lead.id,
-    tenantId,
     score: parsed.score,
     temperature,
   });
 
   // Real-time WebSocket notification
-  emitToTenant(tenantId, 'lead:qualified', {
+  emitEvent('lead:qualified', {
     leadId: lead.id,
     name: `${lead.firstName} ${lead.lastName}`,
     score: parsed.score,
@@ -169,12 +174,11 @@ RGPD: ${lead.gdprConsent ? 'oui' : 'non'}`,
   if (temperature === 'hot') {
     triggerWorkflow('mkt-305', {
       leadId: lead.id,
-      tenantId,
       brandId: lead.brandId,
       score: parsed.score,
     }).catch((err) => console.error('[n8n] MKT-305 trigger failed:', err));
 
-    emitToTenant(tenantId, 'lead:hot', {
+    emitEvent('lead:hot', {
       leadId: lead.id,
       name: `${lead.firstName} ${lead.lastName}`,
       score: parsed.score,
@@ -186,14 +190,14 @@ RGPD: ${lead.gdprConsent ? 'oui' : 'non'}`,
 
 // ─── Hot Lead Auto-Booking (Story 6.4) ───────────────────────
 
-export async function createBookingProposal(tenantId: string, leadId: string) {
+export async function createBookingProposal(leadId: string) {
   const lead = await prisma.lead.findFirst({
-    where: { id: leadId, tenantId },
+    where: { id: leadId },
   });
   if (!lead) throw new AppError(404, 'NOT_FOUND', 'Lead introuvable');
 
-  // Get available slots from Cal.com (mock in dev)
-  const proposedSlots = await getAvailableSlots();
+  // Get available slots from Cal.com (falls back to mock if not configured)
+  const proposedSlots = await getCalSlots(7, 3);
 
   // Generate personalized proposal with Claude
   const proposalMessage = await claudeGenerate(
@@ -205,7 +209,7 @@ Réponds directement avec le message (pas de JSON).`,
 Entreprise: ${lead.company ?? 'non renseignée'}
 Source: ${lead.source}
 Créneaux disponibles:
-${proposedSlots.map((s: { date: string; time: string }) => `- ${s.date} à ${s.time}`).join('\n')}`,
+${proposedSlots.map((s) => `- ${s.date} à ${s.time}`).join('\n')}`,
   );
 
   const booking = await prisma.calendarBooking.create({
@@ -229,27 +233,60 @@ ${proposedSlots.map((s: { date: string; time: string }) => `- ${s.date} à ${s.t
   return booking;
 }
 
-// Mock Cal.com API (dev-friendly)
-async function getAvailableSlots(): Promise<{ date: string; time: string }[]> {
-  // In production: call Cal.com API for available slots
-  console.log('[DEV] Cal.com not configured — returning mock slots');
-  const now = new Date();
-  return [
-    { date: new Date(now.getTime() + 24 * 3600_000).toISOString().slice(0, 10), time: '10:00' },
-    { date: new Date(now.getTime() + 48 * 3600_000).toISOString().slice(0, 10), time: '14:00' },
-    { date: new Date(now.getTime() + 72 * 3600_000).toISOString().slice(0, 10), time: '11:00' },
-  ];
-}
+// ─── Confirm Booking (Cal.com) ──────────────────────────────
 
-// ─── AI Sales Briefing (Story 6.5) ───────────────────────────
-
-export async function generateSalesBriefing(tenantId: string, bookingId: string) {
+export async function confirmBooking(bookingId: string, slotIndex: number) {
   const booking = await prisma.calendarBooking.findFirst({
     where: { id: bookingId },
     include: { lead: true },
   });
   if (!booking) throw new AppError(404, 'NOT_FOUND', 'Booking introuvable');
-  if (booking.lead.tenantId !== tenantId) throw new AppError(404, 'NOT_FOUND', 'Booking introuvable');
+
+  const slots = booking.proposedSlots as unknown as AvailableSlot[];
+  const selectedSlot = slots[slotIndex];
+  if (!selectedSlot) throw new AppError(400, 'VALIDATION_ERROR', 'Créneau invalide');
+
+  // Create actual booking on Cal.com
+  const calBooking = await createCalBooking({
+    name: `${booking.lead.firstName} ${booking.lead.lastName}`,
+    email: booking.lead.email,
+    startTime: selectedSlot.isoDateTime,
+    metadata: { leadId: booking.lead.id, bookingId: booking.id },
+  });
+
+  const updated = await prisma.calendarBooking.update({
+    where: { id: bookingId },
+    data: {
+      status: 'confirmed',
+      confirmedAt: new Date(),
+      confirmedSlot: selectedSlot as unknown as Prisma.InputJsonValue,
+      ...(calBooking ? { calcomEventId: calBooking.uid } : {}),
+    },
+  });
+
+  // Update lead status
+  await prisma.lead.update({
+    where: { id: booking.lead.id },
+    data: { status: 'opportunity' },
+  });
+
+  emitEvent('booking:confirmed', {
+    bookingId: booking.id,
+    leadId: booking.lead.id,
+    slot: selectedSlot,
+  });
+
+  return updated;
+}
+
+// ─── AI Sales Briefing (Story 6.5) ───────────────────────────
+
+export async function generateSalesBriefing(bookingId: string) {
+  const booking = await prisma.calendarBooking.findFirst({
+    where: { id: bookingId },
+    include: { lead: true },
+  });
+  if (!booking) throw new AppError(404, 'NOT_FOUND', 'Booking introuvable');
 
   const lead = booking.lead;
 
@@ -320,12 +357,10 @@ Créé le: ${lead.createdAt.toISOString().slice(0, 10)}`,
 // ─── Lead CRUD ───────────────────────────────────────────────
 
 export async function listLeads(
-  tenantId: string,
   filters?: { brandId?: string; temperature?: string; status?: string; source?: string },
 ) {
   return prisma.lead.findMany({
     where: {
-      tenantId,
       ...(filters?.brandId ? { brandId: filters.brandId } : {}),
       ...(filters?.temperature ? { temperature: filters.temperature } : {}),
       ...(filters?.status ? { status: filters.status } : {}),
@@ -336,9 +371,9 @@ export async function listLeads(
   });
 }
 
-export async function getLeadById(tenantId: string, id: string) {
+export async function getLeadById(id: string) {
   const lead = await prisma.lead.findFirst({
-    where: { id, tenantId },
+    where: { id },
     include: { bookings: { orderBy: { createdAt: 'desc' } } },
   });
   if (!lead) throw new AppError(404, 'NOT_FOUND', 'Lead introuvable');
@@ -346,11 +381,10 @@ export async function getLeadById(tenantId: string, id: string) {
 }
 
 export async function updateLead(
-  tenantId: string,
   id: string,
   data: { status?: string; assignedTo?: string; temperature?: string },
 ) {
-  const lead = await prisma.lead.findFirst({ where: { id, tenantId } });
+  const lead = await prisma.lead.findFirst({ where: { id } });
   if (!lead) throw new AppError(404, 'NOT_FOUND', 'Lead introuvable');
 
   return prisma.lead.update({
@@ -366,11 +400,9 @@ export async function updateLead(
 // ─── Pipeline Funnel Data (Story 6.6) ────────────────────────
 
 export async function getPipelineFunnel(
-  tenantId: string,
   filters?: { brandId?: string; from?: Date; to?: Date },
 ) {
   const where = {
-    tenantId,
     ...(filters?.brandId ? { brandId: filters.brandId } : {}),
     ...(filters?.from || filters?.to
       ? {

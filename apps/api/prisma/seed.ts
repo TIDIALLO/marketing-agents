@@ -6,29 +6,16 @@ const prisma = new PrismaClient();
 const BCRYPT_ROUNDS = 12;
 
 async function main() {
-  console.log('🌱 Seeding database...');
+  console.log('Seeding database...');
 
-  // ─── Tenant ──────────────────────────────────────────────────
-  const tenant = await prisma.tenant.upsert({
-    where: { id: 'seed-tenant-001' },
-    update: {},
-    create: {
-      id: 'seed-tenant-001',
-      name: 'Synap6ia Demo',
-      plan: 'pro',
-    },
-  });
-  console.log(`  ✓ Tenant: ${tenant.name} (${tenant.id})`);
-
-  // ─── Users ───────────────────────────────────────────────────
+  // ─── User (single owner) ──────────────────────────────────────
   const adminHash = await bcrypt.hash('Admin123!', BCRYPT_ROUNDS);
-  const editorHash = await bcrypt.hash('Editor123!', BCRYPT_ROUNDS);
 
   const admin = await prisma.platformUser.upsert({
     where: { email: 'admin@synap6ia.com' },
     update: {},
     create: {
-      tenantId: tenant.id,
+      id: 'seed-user-001',
       email: 'admin@synap6ia.com',
       passwordHash: adminHash,
       firstName: 'Amadou',
@@ -36,45 +23,7 @@ async function main() {
       role: 'owner',
     },
   });
-  console.log(`  ✓ User (owner): ${admin.email} / Admin123!`);
-
-  const editor = await prisma.platformUser.upsert({
-    where: { email: 'editor@synap6ia.com' },
-    update: {},
-    create: {
-      tenantId: tenant.id,
-      email: 'editor@synap6ia.com',
-      passwordHash: editorHash,
-      firstName: 'Fatou',
-      lastName: 'Ndiaye',
-      role: 'editor',
-    },
-  });
-  console.log(`  ✓ User (editor): ${editor.email} / Editor123!`);
-
-  // ─── Organization ────────────────────────────────────────────
-  const org = await prisma.organization.upsert({
-    where: { id: 'seed-org-001' },
-    update: {},
-    create: {
-      id: 'seed-org-001',
-      tenantId: tenant.id,
-      name: 'Synap6ia Marketing',
-      description: 'Organisation de démonstration',
-    },
-  });
-
-  await prisma.organizationUser.upsert({
-    where: { organizationId_userId: { organizationId: org.id, userId: admin.id } },
-    update: {},
-    create: { organizationId: org.id, userId: admin.id, role: 'owner' },
-  });
-  await prisma.organizationUser.upsert({
-    where: { organizationId_userId: { organizationId: org.id, userId: editor.id } },
-    update: {},
-    create: { organizationId: org.id, userId: editor.id, role: 'editor' },
-  });
-  console.log(`  ✓ Organization: ${org.name}`);
+  console.log(`  User (owner): ${admin.email} / Admin123!`);
 
   // ─── Brand ───────────────────────────────────────────────────
   const brand = await prisma.brand.upsert({
@@ -82,84 +31,100 @@ async function main() {
     update: {},
     create: {
       id: 'seed-brand-001',
-      tenantId: tenant.id,
-      organizationId: org.id,
-      name: 'TechAfrik',
-      brandVoice: 'Professionnel mais accessible. Ton inspirant tourné vers l\'innovation en Afrique de l\'Ouest.',
-      targetAudience: 'PME tech, startups et entrepreneurs au Sénégal et Côte d\'Ivoire, 25-45 ans.',
-      contentGuidelines: 'Toujours inclure un CTA. Utiliser le français avec des expressions locales. Éviter le jargon technique excessif.',
+      userId: admin.id,
+      name: 'Synap6ia',
+      brandVoice: 'Expert technique mais accessible. Ton confiant et orienté résultats. Nous parlons le langage des CTOs et DSI qui veulent sécuriser leur infrastructure sans complexité.',
+      targetAudience: 'CTOs, DSI, RSSI et responsables IT de PME en Afrique de l\'Ouest (Sénégal, Côte d\'Ivoire) et France. Entreprises de 10 à 500 employés cherchant à automatiser leur cybersécurité.',
+      contentGuidelines: 'Toujours inclure un CTA vers la démo ou le site. Mettre en avant le ROI et les gains de temps. Éviter le jargon cyber excessif — rester concret avec des cas d\'usage.',
     },
   });
-  console.log(`  ✓ Brand: ${brand.name}`);
+  console.log(`  Brand: ${brand.name}`);
 
-  // ─── Products ────────────────────────────────────────────────
-  await prisma.product.upsert({
+  // ─── Product: SOC Autopilot Hub ───────────────────────────────
+  const product = await prisma.product.upsert({
     where: { id: 'seed-product-001' },
     update: {},
     create: {
       id: 'seed-product-001',
       brandId: brand.id,
-      name: 'TechAfrik Pro',
-      description: 'Suite logicielle tout-en-un pour PME africaines',
+      name: 'SOC Autopilot Hub',
+      slug: 'soc-autopilot-hub',
+      tagline: 'Votre SOC automatisé, prêt en 24h',
+      description: 'Plateforme SOC automatisée tout-en-un pour PME. Détection, réponse et conformité sans équipe cyber dédiée.',
+      longDescription: `SOC Autopilot Hub est la première plateforme SOC entièrement automatisée conçue pour les PME africaines et françaises.
+
+**Le problème** : Les PME sont les cibles #1 des cyberattaques, mais n'ont ni le budget ni l'expertise pour un SOC traditionnel (300K€/an minimum).
+
+**Notre solution** :
+- Déploiement en 24h, pas en 6 mois
+- Détection automatique des menaces 24/7
+- Réponse automatisée aux incidents
+- Rapports de conformité (ISO 27001, RGPD) générés automatiquement
+- Workflows n8n personnalisables pour votre contexte
+
+**Résultats clients** :
+- 95% des alertes traitées automatiquement
+- Temps de détection moyen : 3 minutes (vs 197 jours industrie)
+- Économie de 70% vs SOC traditionnel`,
+      pricing: {
+        plans: [
+          { name: 'Starter', price: 299, currency: 'EUR', period: 'mois', features: ['Jusqu\'à 50 endpoints', 'Détection automatique', 'Dashboard temps réel', 'Support email'] },
+          { name: 'Pro', price: 599, currency: 'EUR', period: 'mois', features: ['Jusqu\'à 200 endpoints', 'Tout Starter +', 'Réponse automatisée', 'Rapports conformité', 'Support prioritaire', 'API access'] },
+          { name: 'Enterprise', price: null, currency: 'EUR', period: 'mois', features: ['Endpoints illimités', 'Tout Pro +', 'Déploiement on-premise', 'SLA 99.9%', 'Account manager dédié', 'Formations équipe'] },
+        ],
+      },
+      features: [
+        { icon: 'shield', title: 'Détection 24/7', description: 'Surveillance continue de votre infrastructure avec IA' },
+        { icon: 'zap', title: 'Réponse automatique', description: 'Isolation et remédiation automatique des menaces' },
+        { icon: 'clock', title: 'Déploiement 24h', description: 'Opérationnel en 24h, pas en 6 mois' },
+        { icon: 'file-text', title: 'Conformité auto', description: 'Rapports ISO 27001 et RGPD générés automatiquement' },
+        { icon: 'trending-down', title: '-70% coûts', description: '70% moins cher qu\'un SOC traditionnel' },
+        { icon: 'users', title: 'Sans équipe cyber', description: 'Pas besoin de recruter des analystes SOC' },
+      ],
+      testimonials: [
+        { name: 'Ibrahim Sow', company: 'DigiServ Dakar', role: 'CTO', quote: 'SOC Autopilot Hub nous a permis de passer notre audit de sécurité en 2 semaines. Avant, on ne savait même pas par où commencer.', avatar: null },
+        { name: 'Mariama Camara', company: 'Soleil Media', role: 'DSI', quote: 'On a détecté et bloqué une tentative de ransomware automatiquement. Sans le SOC, on aurait perdu des semaines de données.', avatar: null },
+        { name: 'Cheikh Fall', company: 'InnovLab Abidjan', role: 'CEO', quote: 'Le rapport de conformité RGPD généré automatiquement nous a fait gagner 3 mois de travail consultant.', avatar: null },
+      ],
+      ctaText: 'Demander une démo gratuite',
+      ctaUrl: 'https://synap6ia.com/demo',
+      isActive: true,
+      sortOrder: 1,
     },
   });
-  await prisma.product.upsert({
-    where: { id: 'seed-product-002' },
-    update: {},
-    create: {
-      id: 'seed-product-002',
-      brandId: brand.id,
-      name: 'TechAfrik Academy',
-      description: 'Formation en ligne pour entrepreneurs tech',
-    },
-  });
-  console.log('  ✓ Products: 2 created');
+  console.log(`  Product: ${product.name}`);
 
   // ─── Content Pieces ──────────────────────────────────────────
   const contentPieces = [
     {
       id: 'seed-content-001',
-      tenantId: tenant.id,
       brandId: brand.id,
       platform: 'linkedin',
-      title: '5 tendances tech qui transforment les PME en Afrique de l\'Ouest',
-      body: 'L\'Afrique de l\'Ouest connaît une révolution technologique sans précédent. Voici 5 tendances qui redéfinissent le paysage des PME :\n\n1. 📱 Mobile-first : 80% des transactions passent par le mobile\n2. 🤖 IA accessible : des solutions adaptées au marché local\n3. 💰 Fintech : Orange Money, Wave transforment les paiements\n4. ☁️ Cloud local : des datacenters arrivent à Dakar\n5. 🎓 EdTech : formation continue pour les entrepreneurs\n\nQuelle tendance impacte le plus votre business ?',
-      hashtags: JSON.stringify(['TechAfrique', 'PME', 'Innovation', 'Senegal']),
+      title: 'Pourquoi 60% des PME ferment après une cyberattaque',
+      body: 'Chiffre choc : 60% des PME victimes d\'une cyberattaque ferment dans les 6 mois.\n\nLe problème ? Ce n\'est pas le manque de solutions. C\'est le manque de solutions ADAPTÉES aux PME.\n\nUn SOC traditionnel coûte 300K€/an et nécessite 5 analystes.\nUn SOC Autopilot ? 299€/mois, déployé en 24h.\n\n3 choses que SOC Autopilot Hub fait différemment :\n\n1. Détection automatique 24/7 — pas d\'équipe de nuit nécessaire\n2. Réponse automatisée — isolement des menaces en 3 minutes\n3. Rapports conformité — ISO 27001 et RGPD en un clic\n\nVotre PME mérite la même protection que les grands groupes.\n\n→ Lien en commentaire pour une démo gratuite\n\n#Cybersécurité #PME #SOC #Sénégal #Innovation',
+      hashtags: JSON.stringify(['Cybersécurité', 'PME', 'SOC', 'Sénégal', 'Innovation']),
       status: 'published',
-      engagementScore: 85.5,
+      engagementScore: 92.3,
       publishedAt: new Date('2026-02-01'),
     },
     {
       id: 'seed-content-002',
-      tenantId: tenant.id,
       brandId: brand.id,
-      platform: 'facebook',
-      title: 'Comment automatiser votre marketing avec l\'IA',
-      body: '🚀 Vous passez trop de temps sur votre marketing ?\n\nAvec TechAfrik Pro, automatisez :\n✅ La création de contenu\n✅ La gestion des leads\n✅ Les campagnes publicitaires\n\nRésultat : 3x plus de leads, 2x moins de temps.\n\n👉 Demandez votre démo gratuite !',
-      hashtags: JSON.stringify(['Marketing', 'Automatisation', 'IA']),
+      platform: 'linkedin',
+      title: 'Comment automatiser votre conformité RGPD avec l\'IA',
+      body: 'La conformité RGPD vous coûte combien de temps par mois ?\n\nSi la réponse est "plus de 2 heures", vous faites probablement tout à la main.\n\nAvec SOC Autopilot Hub :\n✅ Scan automatique de votre infrastructure\n✅ Détection des données personnelles non protégées\n✅ Rapport de conformité généré en 1 clic\n✅ Alertes en temps réel si non-conformité détectée\n\nRésultat pour nos clients : 3 mois de travail consultant économisés.\n\n👉 Demandez votre audit gratuit',
+      hashtags: JSON.stringify(['RGPD', 'Conformité', 'IA', 'PME']),
       status: 'approved',
       engagementScore: 0,
     },
     {
       id: 'seed-content-003',
-      tenantId: tenant.id,
       brandId: brand.id,
-      platform: 'instagram',
-      title: 'Témoignage client — Moussa, fondateur de DigiServ',
-      body: '"Grâce à TechAfrik Pro, j\'ai triplé mon chiffre d\'affaires en 6 mois. L\'IA me suggère exactement le bon contenu pour ma cible."\n\n— Moussa Keita, DigiServ Abidjan\n\n#Témoignage #Succès #Entrepreneuriat',
-      hashtags: JSON.stringify(['Témoignage', 'Succès', 'Entrepreneuriat']),
+      platform: 'twitter',
+      title: 'Thread cybersécurité PME',
+      body: 'Une PME sur deux a subi une cyberattaque en 2025.\n\nMais seulement 14% ont un SOC.\n\nLe SOC Autopilot Hub change ça : 299€/mois, déployé en 24h.\n\n→ synap6ia.com/demo',
+      hashtags: JSON.stringify(['CyberSec', 'PME', 'SOC']),
       status: 'draft',
-      engagementScore: 0,
-    },
-    {
-      id: 'seed-content-004',
-      tenantId: tenant.id,
-      brandId: brand.id,
-      platform: 'tiktok',
-      title: '60 secondes pour comprendre le marketing automation',
-      body: 'Script vidéo TikTok :\n[0-5s] Hook : "Vous perdez 10h/semaine sur votre marketing ?"\n[5-20s] Problème : montrer les tâches répétitives\n[20-45s] Solution : démo rapide TechAfrik Pro\n[45-60s] CTA : "Lien en bio pour votre essai gratuit"',
-      hashtags: JSON.stringify(['MarketingTips', 'Automation', 'Business']),
-      status: 'scheduled',
       engagementScore: 0,
     },
   ];
@@ -171,15 +136,15 @@ async function main() {
       create: piece,
     });
   }
-  console.log(`  ✓ Content pieces: ${contentPieces.length} created`);
+  console.log(`  Content pieces: ${contentPieces.length} created`);
 
   // ─── Content Metrics (for published piece) ───────────────────
   const metricsData = [
-    { impressions: 1200, engagements: 95, likes: 67, comments: 12, shares: 16, clicks: 45, engagementRate: 0.079 },
-    { impressions: 2300, engagements: 180, likes: 120, comments: 28, shares: 32, clicks: 89, engagementRate: 0.078 },
-    { impressions: 1800, engagements: 145, likes: 98, comments: 19, shares: 28, clicks: 67, engagementRate: 0.081 },
-    { impressions: 3100, engagements: 260, likes: 175, comments: 35, shares: 50, clicks: 112, engagementRate: 0.084 },
-    { impressions: 2700, engagements: 220, likes: 150, comments: 30, shares: 40, clicks: 95, engagementRate: 0.081 },
+    { impressions: 3200, engagements: 245, likes: 167, comments: 32, shares: 46, clicks: 89, engagementRate: 0.077 },
+    { impressions: 4500, engagements: 380, likes: 250, comments: 55, shares: 75, clicks: 134, engagementRate: 0.084 },
+    { impressions: 3800, engagements: 310, likes: 198, comments: 48, shares: 64, clicks: 112, engagementRate: 0.082 },
+    { impressions: 5100, engagements: 460, likes: 295, comments: 65, shares: 100, clicks: 167, engagementRate: 0.090 },
+    { impressions: 4700, engagements: 420, likes: 270, comments: 60, shares: 90, clicks: 145, engagementRate: 0.089 },
   ];
 
   for (let i = 0; i < metricsData.length; i++) {
@@ -192,157 +157,72 @@ async function main() {
       },
     });
   }
-  console.log('  ✓ Content metrics: 5 days of data');
+  console.log('  Content metrics: 5 days of data');
 
-  // ─── Leads ───────────────────────────────────────────────────
+  // ─── Leads (interested in cybersecurity) ─────────────────────
   const leads = [
     { id: 'seed-lead-001', firstName: 'Ibrahim', lastName: 'Sow', email: 'ibrahim@digiserv.sn', company: 'DigiServ', source: 'form', score: 85, temperature: 'hot', status: 'qualified', gdprConsent: true },
-    { id: 'seed-lead-002', firstName: 'Aïssatou', lastName: 'Ba', email: 'aissatou@nexatech.ci', company: 'NexaTech', source: 'ad', score: 62, temperature: 'warm', status: 'nurturing', gdprConsent: true },
+    { id: 'seed-lead-002', firstName: 'Aissatou', lastName: 'Ba', email: 'aissatou@nexatech.ci', company: 'NexaTech', source: 'ad', score: 62, temperature: 'warm', status: 'nurturing', gdprConsent: true },
     { id: 'seed-lead-003', firstName: 'Ousmane', lastName: 'Diop', email: 'ousmane@startupdk.sn', company: 'StartupDK', source: 'webinar', score: 45, temperature: 'warm', status: 'new', gdprConsent: true },
     { id: 'seed-lead-004', firstName: 'Mariama', lastName: 'Camara', email: 'mariama@soleilmedia.sn', company: 'Soleil Media', source: 'referral', score: 91, temperature: 'hot', status: 'opportunity', gdprConsent: true },
     { id: 'seed-lead-005', firstName: 'Cheikh', lastName: 'Fall', email: 'cheikh@innovlab.ci', company: 'InnovLab', source: 'form', score: 30, temperature: 'cold', status: 'new', gdprConsent: false },
-    { id: 'seed-lead-006', firstName: 'Aminata', lastName: 'Touré', email: 'aminata@quickpay.sn', company: 'QuickPay', source: 'ad', score: 78, temperature: 'hot', status: 'converted', gdprConsent: true, convertedAt: new Date('2026-02-05'), conversionValue: 2500000 },
+    { id: 'seed-lead-006', firstName: 'Aminata', lastName: 'Toure', email: 'aminata@quickpay.sn', company: 'QuickPay Fintech', source: 'ad', score: 78, temperature: 'hot', status: 'converted', gdprConsent: true, convertedAt: new Date('2026-02-05'), conversionValue: 3588 },
+    { id: 'seed-lead-007', firstName: 'Jean-Pierre', lastName: 'Dupont', email: 'jp.dupont@securitech.fr', company: 'SecuriTech Paris', source: 'form', score: 72, temperature: 'hot', status: 'qualified', gdprConsent: true },
+    { id: 'seed-lead-008', firstName: 'Fatou', lastName: 'Ndiaye', email: 'fatou@banqueatlantique.sn', company: 'Banque Atlantique', source: 'referral', score: 88, temperature: 'hot', status: 'opportunity', gdprConsent: true },
   ];
 
   for (const lead of leads) {
     await prisma.lead.upsert({
-      where: { tenantId_email: { tenantId: tenant.id, email: lead.email } },
+      where: { brandId_email: { brandId: brand.id, email: lead.email } },
       update: {},
-      create: { tenantId: tenant.id, brandId: brand.id, ...lead },
+      create: { brandId: brand.id, ...lead },
     });
   }
-  console.log(`  ✓ Leads: ${leads.length} created`);
+  console.log(`  Leads: ${leads.length} created`);
 
   // ─── Lead Interactions ───────────────────────────────────────
   const interactions = [
-    { leadId: 'seed-lead-001', direction: 'inbound', channel: 'form', content: 'Demande de démo via formulaire site web', aiSentiment: 'positive', aiIntent: 'interested' },
-    { leadId: 'seed-lead-001', direction: 'outbound', channel: 'email', content: 'Email de bienvenue + lien de démo envoyé', aiSentiment: null, aiIntent: null },
-    { leadId: 'seed-lead-001', direction: 'inbound', channel: 'email', content: 'Merci pour la démo, je souhaite en savoir plus sur les tarifs', aiSentiment: 'positive', aiIntent: 'ready_to_buy' },
-    { leadId: 'seed-lead-002', direction: 'inbound', channel: 'form', content: 'Clic sur publicité Facebook — page de capture', aiSentiment: 'neutral', aiIntent: 'needs_info' },
-    { leadId: 'seed-lead-002', direction: 'outbound', channel: 'whatsapp', content: 'Bonjour Aïssatou ! Suite à votre intérêt pour TechAfrik...', aiSentiment: null, aiIntent: null },
-    { leadId: 'seed-lead-004', direction: 'inbound', channel: 'phone', content: 'Appel entrant — veut un devis pour 10 utilisateurs', aiSentiment: 'positive', aiIntent: 'ready_to_buy' },
+    { leadId: 'seed-lead-001', direction: 'inbound', channel: 'form', content: 'Intéressé par SOC Autopilot Hub. Nous sommes une ESN de 45 personnes à Dakar, victimes d\'un phishing le mois dernier.', aiSentiment: 'positive', aiIntent: 'interested' },
+    { leadId: 'seed-lead-001', direction: 'outbound', channel: 'email', content: 'Email de bienvenue avec lien de démo SOC Autopilot Hub envoyé.', aiSentiment: null, aiIntent: null },
+    { leadId: 'seed-lead-001', direction: 'inbound', channel: 'email', content: 'La démo m\'a convaincu. Quel est le tarif pour 50 postes ? On aimerait déployer avant fin mars.', aiSentiment: 'positive', aiIntent: 'ready_to_buy' },
+    { leadId: 'seed-lead-004', direction: 'inbound', channel: 'phone', content: 'Appel entrant — veut un devis pour 120 postes + conformité RGPD. Budget validé en interne.', aiSentiment: 'positive', aiIntent: 'ready_to_buy' },
+    { leadId: 'seed-lead-008', direction: 'inbound', channel: 'form', content: 'Banque Atlantique cherche une solution SOC conforme aux normes BCEAO. Besoin de présentation au CODIR.', aiSentiment: 'positive', aiIntent: 'interested' },
   ];
 
   for (const interaction of interactions) {
     await prisma.leadInteraction.create({ data: interaction });
   }
-  console.log(`  ✓ Lead interactions: ${interactions.length} created`);
+  console.log(`  Lead interactions: ${interactions.length} created`);
 
-  // ─── Ad Campaigns ────────────────────────────────────────────
-  // Need a social account + ad account first
-  const socialAccount = await prisma.socialAccount.upsert({
-    where: { brandId_platform: { brandId: brand.id, platform: 'facebook' } },
+  // ─── Lead Sequences (Nurturing) ─────────────────────────────
+  await prisma.leadSequence.upsert({
+    where: { id: 'seed-sequence-001' },
     update: {},
     create: {
-      id: 'seed-social-001',
-      brandId: brand.id,
-      platform: 'facebook',
-      platformUserId: 'fb-123456',
-      platformUsername: 'TechAfrik',
-      accessTokenEncrypted: 'encrypted-placeholder',
-      status: 'active',
+      id: 'seed-sequence-001',
+      name: 'Découverte SOC Autopilot',
+      steps: [
+        { order: 1, channel: 'email', delayHours: 0, bodyPrompt: 'Email de bienvenue : remercier pour l\'intérêt porté à SOC Autopilot Hub. Présenter les 3 avantages clés (déploiement 24h, -70% coûts, conformité auto). Inclure un lien vers la démo interactive.' },
+        { order: 2, channel: 'email', delayHours: 48, bodyPrompt: 'Cas d\'usage concret : partager comment DigiServ Dakar a détecté et bloqué automatiquement une attaque ransomware grâce à SOC Autopilot Hub. Chiffres clés et témoignage.' },
+        { order: 3, channel: 'email', delayHours: 96, bodyPrompt: 'Proposition de démo personnalisée : proposer un appel de 20min pour montrer SOC Autopilot Hub configuré pour leur secteur. Inclure 3 créneaux.' },
+        { order: 4, channel: 'email', delayHours: 168, bodyPrompt: 'Relance douce : rappeler la proposition de démo, ajouter un 2ème témoignage client, et offrir un audit de sécurité gratuit.' },
+      ],
     },
   });
 
-  const adAccount = await prisma.adAccount.upsert({
-    where: { id: 'seed-adaccount-001' },
+  await prisma.leadSequence.upsert({
+    where: { id: 'seed-sequence-002' },
     update: {},
     create: {
-      id: 'seed-adaccount-001',
-      socialAccountId: socialAccount.id,
-      platform: 'facebook',
-      platformAccountId: 'act_987654',
-      name: 'TechAfrik Ads',
-      status: 'active',
+      id: 'seed-sequence-002',
+      name: 'Lead Chaud — Closing',
+      steps: [
+        { order: 1, channel: 'email', delayHours: 0, bodyPrompt: 'Proposition RDV immédiat : le lead est très intéressé par SOC Autopilot Hub. Proposer un appel dans les 24h avec créneaux précis. Mentionner l\'offre de déploiement gratuit.' },
+        { order: 2, channel: 'email', delayHours: 24, bodyPrompt: 'Relance 24h : relancer avec un angle ROI (combien coûte une cyberattaque vs le prix de SOC Autopilot). Dernière chance avant de repasser en nurturing.' },
+      ],
     },
   });
-
-  const campaigns = [
-    {
-      id: 'seed-campaign-001',
-      tenantId: tenant.id,
-      brandId: brand.id,
-      adAccountId: adAccount.id,
-      name: 'Campagne Leads Q1 2026',
-      platform: 'facebook',
-      objective: 'leads',
-      dailyBudget: 15000,
-      totalBudget: 450000,
-      status: 'active',
-      targeting: { ageMin: 25, ageMax: 45, genders: ['all'], interests: ['Technology', 'Business', 'Entrepreneurship'], locations: ['Sénégal', 'Côte d\'Ivoire'], customAudiences: [] },
-      kpiTargets: { targetCpc: 150, targetCtr: 0.025, targetRoas: 3.5 },
-    },
-    {
-      id: 'seed-campaign-002',
-      tenantId: tenant.id,
-      brandId: brand.id,
-      adAccountId: adAccount.id,
-      name: 'Notoriété TechAfrik Academy',
-      platform: 'facebook',
-      objective: 'awareness',
-      dailyBudget: 8000,
-      totalBudget: 240000,
-      status: 'draft',
-      targeting: { ageMin: 20, ageMax: 35, genders: ['all'], interests: ['Education', 'Online Learning'], locations: ['Sénégal'], customAudiences: [] },
-      kpiTargets: { targetCpc: 100, targetCtr: 0.03, targetRoas: 2.0 },
-    },
-  ];
-
-  for (const campaign of campaigns) {
-    await prisma.adCampaign.upsert({
-      where: { id: campaign.id },
-      update: {},
-      create: campaign,
-    });
-  }
-  console.log(`  ✓ Ad campaigns: ${campaigns.length} created`);
-
-  // ─── Ad Creatives ────────────────────────────────────────────
-  await prisma.adCreative.upsert({
-    where: { id: 'seed-creative-001' },
-    update: {},
-    create: {
-      id: 'seed-creative-001',
-      campaignId: 'seed-campaign-001',
-      title: 'Boostez votre marketing avec l\'IA',
-      body: 'TechAfrik Pro automatise votre marketing. 3x plus de leads, 2x moins d\'effort. Essai gratuit !',
-      imageUrl: 'https://placehold.co/1200x628/6366f1/white?text=TechAfrik+Pro',
-      callToActionType: 'SIGN_UP',
-    },
-  });
-  await prisma.adCreative.upsert({
-    where: { id: 'seed-creative-002' },
-    update: {},
-    create: {
-      id: 'seed-creative-002',
-      campaignId: 'seed-campaign-001',
-      title: 'Témoignage : +200% de leads en 3 mois',
-      body: 'Découvrez comment Moussa a triplé son CA grâce à TechAfrik Pro. Votre tour ?',
-      imageUrl: 'https://placehold.co/1200x628/10b981/white?text=Témoignage+Client',
-      callToActionType: 'LEARN_MORE',
-    },
-  });
-  console.log('  ✓ Ad creatives: 2 created');
-
-  // ─── Ad Metrics ──────────────────────────────────────────────
-  const adMetricsData = [
-    { impressions: 5200, clicks: 130, spend: 14500, conversions: 8, cpc: 111, cpm: 2788, ctr: 0.025, roas: 3.8 },
-    { impressions: 6100, clicks: 158, spend: 15000, conversions: 11, cpc: 95, cpm: 2459, ctr: 0.026, roas: 4.1 },
-    { impressions: 4800, clicks: 115, spend: 13200, conversions: 6, cpc: 115, cpm: 2750, ctr: 0.024, roas: 3.2 },
-    { impressions: 7200, clicks: 195, spend: 15000, conversions: 14, cpc: 77, cpm: 2083, ctr: 0.027, roas: 4.7 },
-    { impressions: 5900, clicks: 148, spend: 14800, conversions: 9, cpc: 100, cpm: 2508, ctr: 0.025, roas: 3.5 },
-  ];
-
-  for (let i = 0; i < adMetricsData.length; i++) {
-    await prisma.adMetrics.create({
-      data: {
-        campaignId: 'seed-campaign-001',
-        ...adMetricsData[i],
-        collectedAt: new Date(Date.now() - (adMetricsData.length - i) * 86400000),
-      },
-    });
-  }
-  console.log('  ✓ Ad metrics: 5 days of data');
+  console.log('  Lead sequences: 2 created');
 
   // ─── Approval Queue ──────────────────────────────────────────
   await prisma.approvalQueue.upsert({
@@ -350,26 +230,13 @@ async function main() {
     update: {},
     create: {
       id: 'seed-approval-001',
-      tenantId: tenant.id,
       entityType: 'content_piece',
       entityId: 'seed-content-002',
       status: 'pending',
       priority: 'high',
     },
   });
-  await prisma.approvalQueue.upsert({
-    where: { id: 'seed-approval-002' },
-    update: {},
-    create: {
-      id: 'seed-approval-002',
-      tenantId: tenant.id,
-      entityType: 'ad_campaign',
-      entityId: 'seed-campaign-002',
-      status: 'pending',
-      priority: 'medium',
-    },
-  });
-  console.log('  ✓ Approval queue: 2 pending items');
+  console.log('  Approval queue: 1 pending item');
 
   // ─── Daily Analytics ─────────────────────────────────────────
   for (let i = 6; i >= 0; i--) {
@@ -378,38 +245,34 @@ async function main() {
     date.setHours(0, 0, 0, 0);
 
     await prisma.dailyAnalytics.upsert({
-      where: { organizationId_date: { organizationId: org.id, date } },
+      where: { brandId_date: { brandId: brand.id, date } },
       update: {},
       create: {
-        tenantId: tenant.id,
-        organizationId: org.id,
+        brandId: brand.id,
         date,
         contentsPublished: Math.floor(Math.random() * 3) + 1,
         impressions: Math.floor(Math.random() * 5000) + 2000,
         engagements: Math.floor(Math.random() * 300) + 100,
-        avgEngagementRate: +(Math.random() * 0.05 + 0.03).toFixed(3),
-        adSpend: Math.floor(Math.random() * 5000) + 10000,
+        avgEngagementRate: +(Math.random() * 0.05 + 0.06).toFixed(3),
+        adSpend: 0,
         leadsGenerated: Math.floor(Math.random() * 5) + 1,
         leadsQualified: Math.floor(Math.random() * 3),
         conversions: Math.floor(Math.random() * 2),
       },
     });
   }
-  console.log('  ✓ Daily analytics: 7 days of data');
+  console.log('  Daily analytics: 7 days of data');
 
   // ─── Summary ─────────────────────────────────────────────────
-  console.log('\n✅ Seed completed!\n');
-  console.log('┌──────────────────────────────────────────────┐');
-  console.log('│  Comptes de démonstration                    │');
-  console.log('├──────────────────────────────────────────────┤');
-  console.log('│  👤 Owner:  admin@synap6ia.com / Admin123!   │');
-  console.log('│  ✏️  Editor: editor@synap6ia.com / Editor123! │');
-  console.log('└──────────────────────────────────────────────┘');
+  console.log('\nSeed completed!\n');
+  console.log('Login: admin@synap6ia.com / Admin123!');
+  console.log('Brand: Synap6ia');
+  console.log('Product: SOC Autopilot Hub');
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Seed failed:', e);
+    console.error('Seed failed:', e);
     process.exit(1);
   })
   .finally(() => prisma.$disconnect());

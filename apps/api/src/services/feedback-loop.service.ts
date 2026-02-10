@@ -40,7 +40,7 @@ export async function amplifyWinningContent(signalId: string) {
 
   // Import and call campaign proposal service
   const { generateCampaignProposal } = await import('./advertising.service');
-  const campaign = await generateCampaignProposal(piece.tenantId, {
+  const campaign = await generateCampaignProposal({
     brandId: piece.brandId,
     adAccountId: adAccount.id,
     contentSignalId: signal.id,
@@ -55,7 +55,6 @@ export async function amplifyWinningContent(signalId: string) {
     signalId: signal.id,
     contentPieceId: piece.id,
     campaignId: campaign.id,
-    tenantId: piece.tenantId,
     action: 'auto_campaign_proposal',
   });
 
@@ -79,7 +78,6 @@ export interface AdAttributionData {
 
 export async function ingestAdLead(
   leadData: {
-    tenantId: string;
     brandId: string;
     firstName: string;
     lastName: string;
@@ -104,7 +102,6 @@ export async function ingestAdLead(
   // Publish with full attribution for traceability
   await publishPersistentMessage('mkt:agent:3:ad_lead', {
     leadId: lead.id,
-    tenantId: lead.tenantId,
     ...attribution,
     action: 'ad_lead_ingestion',
   });
@@ -115,13 +112,12 @@ export async function ingestAdLead(
 // ─── Story 10.5: Leads → Content Feedback Loops ─────────────────
 // Analyze conversion patterns and create content inputs from pain points
 
-export async function analyzeConversionPatterns(tenantId: string) {
+export async function analyzeConversionPatterns() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600_000);
 
   // Get recent conversions
   const conversions = await prisma.lead.findMany({
     where: {
-      tenantId,
       convertedAt: { gte: thirtyDaysAgo },
     },
     include: {
@@ -136,7 +132,6 @@ export async function analyzeConversionPatterns(tenantId: string) {
   // Get recent pain points from interactions
   const painPointInteractions = await prisma.leadInteraction.findMany({
     where: {
-      lead: { tenantId },
       aiIntent: { in: ['objection', 'pain_point', 'question'] },
       createdAt: { gte: thirtyDaysAgo },
     },
@@ -177,7 +172,6 @@ ${painPointInteractions.slice(0, 15).map((p) => `- [${p.aiIntent}] ${p.content.s
 
   // Create ContentInput entries for high-confidence patterns
   const brands = await prisma.brand.findMany({
-    where: { tenantId },
     select: { id: true },
     take: 1,
   });
@@ -189,7 +183,6 @@ ${painPointInteractions.slice(0, 15).map((p) => `- [${p.aiIntent}] ${p.content.s
       if (pattern.confidence >= 0.6 && pattern.suggestedContent) {
         await prisma.contentInput.create({
           data: {
-            tenantId,
             brandId,
             createdById: 'system',
             inputType: 'auto_insight',
@@ -207,7 +200,6 @@ ${painPointInteractions.slice(0, 15).map((p) => `- [${p.aiIntent}] ${p.content.s
   for (const pattern of parsed.patterns) {
     await prisma.aiLearningLog.create({
       data: {
-        tenantId,
         agentType: 'agent_3',
         actionType: 'conversion_analysis',
         entityType: 'insight',
@@ -221,7 +213,6 @@ ${painPointInteractions.slice(0, 15).map((p) => `- [${p.aiIntent}] ${p.content.s
 
   // Publish insights
   await publishPersistentMessage('mkt:agent:3:insights', {
-    tenantId,
     patterns: parsed.patterns.length,
     contentInputsCreated,
     action: 'conversion_analysis',
@@ -233,13 +224,13 @@ ${painPointInteractions.slice(0, 15).map((p) => `- [${p.aiIntent}] ${p.content.s
 // ─── Story 10.6: AI Learning Loop (MKT-404) ─────────────────────
 // 30-day data analysis, pattern identification, embeddings
 
-export async function runLearningLoop(tenantId: string) {
+export async function runLearningLoop() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600_000);
 
   // Gather 30 days of data
   const [contentPerf, adPerf, leadData, previousInsights] = await Promise.all([
     prisma.contentPiece.findMany({
-      where: { tenantId, publishedAt: { gte: thirtyDaysAgo } },
+      where: { publishedAt: { gte: thirtyDaysAgo } },
       select: {
         id: true, title: true, platform: true, engagementScore: true, status: true,
         hashtags: true,
@@ -249,7 +240,7 @@ export async function runLearningLoop(tenantId: string) {
       take: 50,
     }),
     prisma.adCampaign.findMany({
-      where: { tenantId, createdAt: { gte: thirtyDaysAgo } },
+      where: { createdAt: { gte: thirtyDaysAgo } },
       select: {
         id: true, name: true, platform: true, objective: true, status: true,
         metrics: { orderBy: { collectedAt: 'desc' }, take: 1 },
@@ -258,12 +249,12 @@ export async function runLearningLoop(tenantId: string) {
     }),
     prisma.lead.groupBy({
       by: ['source', 'temperature'],
-      where: { tenantId, createdAt: { gte: thirtyDaysAgo } },
+      where: { createdAt: { gte: thirtyDaysAgo } },
       _count: true,
       _avg: { score: true },
     }),
     prisma.aiLearningLog.findMany({
-      where: { tenantId, actionType: 'learning_loop', createdAt: { gte: thirtyDaysAgo } },
+      where: { actionType: 'learning_loop', createdAt: { gte: thirtyDaysAgo } },
       orderBy: { createdAt: 'desc' },
       take: 10,
     }),
@@ -326,7 +317,6 @@ Limite à 8 patterns max. Réponds uniquement avec le JSON.`,
 
     const log = await prisma.aiLearningLog.create({
       data: {
-        tenantId,
         agentType: 'system',
         actionType: 'learning_loop',
         entityType: 'pattern',
@@ -343,7 +333,6 @@ Limite à 8 patterns max. Réponds uniquement avec le JSON.`,
 
   // Notify all agents via Redis
   await publishEvent('mkt:agent:learning:updated', {
-    tenantId,
     insightCount: insights.length,
     insightIds: insights.map((i) => i.id),
     summary: parsed.summary,
@@ -359,12 +348,12 @@ Limite à 8 patterns max. Réponds uniquement avec le JSON.`,
 // ─── Story 10.7: Ads → Content Performance Feedback ──────────────
 // Extract winning ad creative insights and feed into content guidelines
 
-export async function extractAdCreativeInsights(tenantId: string) {
+export async function extractAdCreativeInsights() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600_000);
 
   // Find top-performing ad creatives by CTR/ROAS
   const topCampaigns = await prisma.adCampaign.findMany({
-    where: { tenantId, createdAt: { gte: thirtyDaysAgo } },
+    where: { createdAt: { gte: thirtyDaysAgo } },
     include: {
       creatives: true,
       metrics: { orderBy: { collectedAt: 'desc' }, take: 1 },
@@ -419,7 +408,6 @@ Limite à 5 insights. Réponds uniquement avec le JSON.`,
   for (const insight of parsed.insights) {
     await prisma.aiLearningLog.create({
       data: {
-        tenantId,
         agentType: 'agent_2',
         actionType: 'ad_creative_insight',
         entityType: 'creative_insight',
@@ -431,15 +419,249 @@ Limite à 5 insights. Réponds uniquement avec le JSON.`,
     });
   }
 
+  // 3.5: Auto-create ContentInput entries from winning ad patterns
+  let contentInputsCreated = 0;
+  const brand = await prisma.brand.findFirst({ select: { id: true } });
+
+  if (brand && parsed.insights.length > 0) {
+    // Group insights by category to create focused content briefs
+    const byCategory: Record<string, typeof parsed.insights> = {};
+    for (const insight of parsed.insights) {
+      if (!byCategory[insight.category]) byCategory[insight.category] = [];
+      byCategory[insight.category].push(insight);
+    }
+
+    for (const [category, categoryInsights] of Object.entries(byCategory)) {
+      // Generate a content brief from winning ad patterns
+      const briefResponse = await claudeGenerate(
+        `Tu es un content strategist. À partir des insights des meilleures publicités, crée un brief de contenu organique.
+Retourne un JSON:
+{
+  "title": "titre du contenu organique",
+  "format": "linkedin-post|twitter-thread|carousel|article",
+  "angle": "angle d'approche inspiré des pubs gagnantes",
+  "keyMessages": ["msg1", "msg2", "msg3"]
+}
+Réponds uniquement avec le JSON.`,
+        `Insights publicitaires (catégorie: ${category}):\n${categoryInsights.map((i) => `- ${i.insight}\n  Application: ${i.applicability}`).join('\n')}
+
+Top créatives source:\n${JSON.stringify(context.slice(0, 3), null, 2)}`,
+      );
+
+      let brief: { title: string; format: string; angle: string; keyMessages: string[] };
+      try {
+        brief = JSON.parse(briefResponse);
+      } catch {
+        continue;
+      }
+
+      await prisma.contentInput.create({
+        data: {
+          brandId: brand.id,
+          createdById: 'system',
+          inputType: 'auto_insight',
+          rawContent: `[Ad Creative → Content | ${category}]
+Titre: ${brief.title}
+Format: ${brief.format}
+Angle: ${brief.angle}
+Messages clés:
+${brief.keyMessages.map((m) => `- ${m}`).join('\n')}
+
+Source: Top ${ranked.length} campagnes pub (ROAS: ${ranked.map((r) => r.metrics[0]?.roas?.toFixed(1) ?? '?').join(', ')})`,
+          aiSummary: `Contenu inspiré pub gagnante (${category}): ${brief.title}`,
+          status: 'pending',
+        },
+      });
+      contentInputsCreated++;
+    }
+  }
+
   // Publish for Agent 1 (Content Flywheel)
   await publishPersistentMessage('mkt:agent:2:performance', {
-    tenantId,
     insightCount: parsed.insights.length,
+    contentInputsCreated,
     insights: parsed.insights,
     action: 'ad_creative_to_content',
   });
 
-  return { insights: parsed.insights.length };
+  await sendSlackNotification({
+    text: `Ad → Content Loop : ${parsed.insights.length} insights extraits, ${contentInputsCreated} briefs de contenu créés`,
+  });
+
+  return { insights: parsed.insights.length, contentInputsCreated };
+}
+
+// ─── Objection → Content Feedback Loop ──────────────────────────
+// Categorize lead objections and auto-create targeted content briefs
+
+const OBJECTION_CATEGORIES = {
+  price: {
+    label: 'Prix / Budget',
+    contentAngles: [
+      'ROI et retour sur investissement concret',
+      'Comparaison coût vs. ne rien faire',
+      'Témoignages clients avec chiffres',
+      'Plans tarifaires et options flexibles',
+    ],
+  },
+  trust: {
+    label: 'Confiance / Crédibilité',
+    contentAngles: [
+      'Études de cas détaillées',
+      'Certifications et partenariats',
+      'Coulisses de l\'équipe et de la tech',
+      'Témoignages vidéo clients',
+    ],
+  },
+  feature: {
+    label: 'Fonctionnalités manquantes',
+    contentAngles: [
+      'Tutoriels et démonstrations de fonctionnalités',
+      'Roadmap produit et vision',
+      'Intégrations et extensibilité',
+      'Comparatifs avec alternatives',
+    ],
+  },
+  timing: {
+    label: 'Timing / Pas prêt',
+    contentAngles: [
+      'Contenu éducatif sur le problème',
+      'Tendances du marché et urgence',
+      'Guide de préparation au changement',
+      'Newsletter périodique avec valeur ajoutée',
+    ],
+  },
+} as const;
+
+export async function analyzeObjectionsAndCreateBriefs() {
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600_000);
+
+  // Fetch objection interactions
+  const objections = await prisma.leadInteraction.findMany({
+    where: {
+      aiIntent: 'objection',
+      direction: 'inbound',
+      createdAt: { gte: thirtyDaysAgo },
+    },
+    select: { content: true, aiSentiment: true, createdAt: true, leadId: true },
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+  });
+
+  if (objections.length === 0) {
+    return { categories: {}, contentBriefsCreated: 0 };
+  }
+
+  // Ask Claude to categorize all objections
+  const aiResponse = await claudeGenerate(
+    `Tu es un stratège marketing B2B. Analyse ces objections de leads et catégorise-les.
+
+Catégories possibles: price, trust, feature, timing
+
+Pour chaque catégorie trouvée, fournis:
+- Le nombre d'occurrences
+- Les objections les plus fréquentes (max 3 par catégorie)
+- Un brief de contenu ciblé pour adresser ces objections
+
+Retourne un JSON:
+{
+  "categories": {
+    "price": { "count": 5, "topObjections": ["trop cher", "pas de budget"], "contentBrief": { "title": "titre du contenu", "angle": "angle d'attaque", "format": "article|video|infographic|case-study", "targetPlatform": "linkedin|twitter|blog", "keyMessages": ["msg1", "msg2"] } },
+    ...
+  },
+  "overallInsight": "résumé en 1-2 phrases"
+}
+Réponds uniquement avec le JSON.`,
+    `Objections des 30 derniers jours (${objections.length}):\n${objections.map((o) => `- [${o.aiSentiment ?? 'N/A'}] ${o.content.slice(0, 300)}`).join('\n')}`,
+  );
+
+  let parsed: {
+    categories: Record<string, {
+      count: number;
+      topObjections: string[];
+      contentBrief: {
+        title: string;
+        angle: string;
+        format: string;
+        targetPlatform: string;
+        keyMessages: string[];
+      };
+    }>;
+    overallInsight: string;
+  };
+  try {
+    parsed = JSON.parse(aiResponse);
+  } catch {
+    parsed = { categories: {}, overallInsight: aiResponse };
+  }
+
+  let contentBriefsCreated = 0;
+
+  // Get brand for content input creation
+  const brand = await prisma.brand.findFirst({ select: { id: true } });
+  if (!brand) return { categories: parsed.categories, contentBriefsCreated: 0 };
+
+  // Create ContentInput entries from categorized objections
+  for (const [category, data] of Object.entries(parsed.categories)) {
+    if (!data.contentBrief) continue;
+
+    const categoryInfo = OBJECTION_CATEGORIES[category as keyof typeof OBJECTION_CATEGORIES];
+    const brief = data.contentBrief;
+
+    await prisma.contentInput.create({
+      data: {
+        brandId: brand.id,
+        createdById: 'system',
+        inputType: 'auto_insight',
+        rawContent: `[Objection Feedback Loop — ${categoryInfo?.label ?? category}]
+Nombre d'objections: ${data.count}
+Top objections: ${data.topObjections.join(', ')}
+
+Titre suggéré: ${brief.title}
+Angle: ${brief.angle}
+Format: ${brief.format}
+Plateforme cible: ${brief.targetPlatform}
+Messages clés:
+${brief.keyMessages.map((m) => `- ${m}`).join('\n')}
+
+Angles de contenu recommandés:
+${(categoryInfo?.contentAngles ?? []).map((a) => `- ${a}`).join('\n')}`,
+        aiSummary: `Contenu anti-objection (${categoryInfo?.label ?? category}): ${brief.title}`,
+        status: 'pending',
+      },
+    });
+    contentBriefsCreated++;
+  }
+
+  // Log to AiLearningLog
+  await prisma.aiLearningLog.create({
+    data: {
+      agentType: 'agent_3',
+      actionType: 'objection_analysis',
+      entityType: 'objection_brief',
+      entityId: `objection_${Date.now()}`,
+      input: { objectionCount: objections.length } as Prisma.InputJsonValue,
+      output: parsed as unknown as Prisma.InputJsonValue,
+      outcome: `briefs_created:${contentBriefsCreated}`,
+    },
+  });
+
+  // Publish for Agent 1 (Content Flywheel)
+  await publishPersistentMessage('mkt:agent:3:objection_briefs', {
+    categories: Object.keys(parsed.categories),
+    contentBriefsCreated,
+    overallInsight: parsed.overallInsight,
+    action: 'objection_to_content',
+  });
+
+  // Slack notification
+  if (contentBriefsCreated > 0) {
+    await sendSlackNotification({
+      text: `Objection → Content : ${contentBriefsCreated} briefs créés à partir de ${objections.length} objections\n${parsed.overallInsight}`,
+    });
+  }
+
+  return { categories: parsed.categories, contentBriefsCreated };
 }
 
 // ─── OpenAI Embeddings (mock in dev) ─────────────────────────────

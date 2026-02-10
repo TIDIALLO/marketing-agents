@@ -1,9 +1,40 @@
+// ─── Brand Voice Configuration ──────────────────────────────
+
+export interface BrandVoiceConfig {
+  tone: string[];
+  vocabulary: {
+    preferred: string[];
+    avoided: string[];
+  };
+  persona: {
+    name: string;
+    role: string;
+    background: string;
+  };
+  frameworks: string[];
+  languageStyle: {
+    formality: 'casual' | 'professional' | 'formal';
+    humor: 'none' | 'light' | 'frequent';
+    emojiUsage: 'none' | 'minimal' | 'moderate' | 'heavy';
+    sentenceLength: 'short' | 'mixed' | 'long';
+  };
+  examples: {
+    good: string[];
+    bad: string[];
+  };
+  platformOverrides?: Partial<Record<string, {
+    tone?: string[];
+    formality?: 'casual' | 'professional' | 'formal';
+    emojiUsage?: 'none' | 'minimal' | 'moderate' | 'heavy';
+    maxLength?: number;
+  }>>;
+}
+
 export interface Brand {
   id: string;
-  tenantId: string;
-  organizationId: string;
+  userId: string;
   name: string;
-  brandVoice: unknown | null;
+  brandVoice: BrandVoiceConfig | null;
   targetAudience: unknown | null;
   contentGuidelines: unknown | null;
   visualGuidelines: unknown | null;
@@ -21,7 +52,6 @@ export interface Product {
 }
 
 export interface CreateBrandRequest {
-  organizationId: string;
   name: string;
   brandVoice?: string;
   targetAudience?: string;
@@ -58,9 +88,3 @@ export interface AdAccount {
   updatedAt: string;
 }
 
-export interface TenantBranding {
-  logo: string | null;
-  primaryColor: string | null;
-  secondaryColor: string | null;
-  customDomain: string | null;
-}

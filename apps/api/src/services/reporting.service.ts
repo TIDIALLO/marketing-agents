@@ -11,17 +11,17 @@ export async function aggregateDailyAnalytics(dateStr?: string) {
   const dayStart = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
   const dayEnd = new Date(dayStart.getTime() + 24 * 3600_000);
 
-  const organizations = await prisma.organization.findMany({
-    select: { id: true, tenantId: true },
+  const brands = await prisma.brand.findMany({
+    select: { id: true },
   });
 
-  const results: { organizationId: string; created: boolean }[] = [];
+  const results: { brandId: string; created: boolean }[] = [];
 
-  for (const org of organizations) {
+  for (const brand of brands) {
     // Count contents published that day
     const contentsPublished = await prisma.contentPiece.count({
       where: {
-        tenantId: org.tenantId,
+        brandId: brand.id,
         status: 'published',
         publishedAt: { gte: dayStart, lt: dayEnd },
       },
@@ -30,7 +30,7 @@ export async function aggregateDailyAnalytics(dateStr?: string) {
     // Aggregate content metrics collected that day
     const metricsAgg = await prisma.contentMetrics.aggregate({
       where: {
-        contentPiece: { tenantId: org.tenantId },
+        contentPiece: { brandId: brand.id },
         collectedAt: { gte: dayStart, lt: dayEnd },
       },
       _sum: { impressions: true, engagements: true },
@@ -40,7 +40,7 @@ export async function aggregateDailyAnalytics(dateStr?: string) {
     // Ad spend that day
     const adMetricsAgg = await prisma.adMetrics.aggregate({
       where: {
-        campaign: { tenantId: org.tenantId },
+        campaign: { brandId: brand.id },
         collectedAt: { gte: dayStart, lt: dayEnd },
       },
       _sum: { spend: true },
@@ -49,7 +49,7 @@ export async function aggregateDailyAnalytics(dateStr?: string) {
     // Leads generated that day
     const leadsGenerated = await prisma.lead.count({
       where: {
-        tenantId: org.tenantId,
+        brandId: brand.id,
         createdAt: { gte: dayStart, lt: dayEnd },
       },
     });
@@ -57,7 +57,7 @@ export async function aggregateDailyAnalytics(dateStr?: string) {
     // Leads qualified (scored) that day
     const leadsQualified = await prisma.lead.count({
       where: {
-        tenantId: org.tenantId,
+        brandId: brand.id,
         temperature: { in: ['hot', 'warm'] },
         updatedAt: { gte: dayStart, lt: dayEnd },
       },
@@ -66,17 +66,16 @@ export async function aggregateDailyAnalytics(dateStr?: string) {
     // Conversions that day
     const conversions = await prisma.lead.count({
       where: {
-        tenantId: org.tenantId,
+        brandId: brand.id,
         convertedAt: { gte: dayStart, lt: dayEnd },
       },
     });
 
     // Upsert daily analytics
     await prisma.dailyAnalytics.upsert({
-      where: { organizationId_date: { organizationId: org.id, date: dayStart } },
+      where: { brandId_date: { brandId: brand.id, date: dayStart } },
       create: {
-        tenantId: org.tenantId,
-        organizationId: org.id,
+        brandId: brand.id,
         date: dayStart,
         contentsPublished,
         impressions: metricsAgg._sum.impressions ?? 0,
@@ -99,7 +98,7 @@ export async function aggregateDailyAnalytics(dateStr?: string) {
       },
     });
 
-    results.push({ organizationId: org.id, created: true });
+    results.push({ brandId: brand.id, created: true });
   }
 
   return { date: dayStart.toISOString().slice(0, 10), aggregated: results.length };
@@ -107,14 +106,13 @@ export async function aggregateDailyAnalytics(dateStr?: string) {
 
 // ─── KPI Streaming Data (Story 9.1) ─────────────────────────────
 
-export async function getStreamingKPIs(tenantId: string) {
+export async function getStreamingKPIs() {
   const now = new Date();
   const last24h = new Date(now.getTime() - 24 * 3600_000);
 
   // Contents published in last 24h
   const contentsPublished24h = await prisma.contentPiece.count({
     where: {
-      tenantId,
       status: 'published',
       publishedAt: { gte: last24h },
     },
@@ -122,24 +120,23 @@ export async function getStreamingKPIs(tenantId: string) {
 
   // Total engagement (all time, latest metrics per piece)
   const engagementAgg = await prisma.contentMetrics.aggregate({
-    where: { contentPiece: { tenantId } },
     _sum: { engagements: true, impressions: true },
   });
 
   // Leads generated last 24h
   const leadsGenerated24h = await prisma.lead.count({
-    where: { tenantId, createdAt: { gte: last24h } },
+    where: { createdAt: { gte: last24h } },
   });
 
   // Average ROAS across active campaigns
   const roasAgg = await prisma.adMetrics.aggregate({
-    where: { campaign: { tenantId, status: 'active' } },
+    where: { campaign: { status: 'active' } },
     _avg: { roas: true },
   });
 
   // Pending approvals
   const pendingApprovals = await prisma.approvalQueue.count({
-    where: { tenantId, status: 'pending' },
+    where: { status: 'pending' },
   });
 
   return {
@@ -155,7 +152,7 @@ export async function getStreamingKPIs(tenantId: string) {
 
 // ─── Weekly AI Report (Story 9.3 — MKT-403) ─────────────────────
 
-export async function generateWeeklyReport(tenantId: string) {
+export async function generateWeeklyReport() {
   const now = new Date();
   const weekAgo = new Date(now.getTime() - 7 * 24 * 3600_000);
   const weekStart = new Date(Date.UTC(weekAgo.getUTCFullYear(), weekAgo.getUTCMonth(), weekAgo.getUTCDate()));
@@ -163,7 +160,6 @@ export async function generateWeeklyReport(tenantId: string) {
   // Get daily analytics for the last 7 days
   const dailyData = await prisma.dailyAnalytics.findMany({
     where: {
-      tenantId,
       date: { gte: weekStart },
     },
     orderBy: { date: 'asc' },
@@ -172,7 +168,6 @@ export async function generateWeeklyReport(tenantId: string) {
   // Top 3 content pieces
   const topContent = await prisma.contentPiece.findMany({
     where: {
-      tenantId,
       status: 'published',
       publishedAt: { gte: weekStart },
     },
@@ -189,7 +184,6 @@ export async function generateWeeklyReport(tenantId: string) {
   // Ad performance summary
   const adSummary = await prisma.adMetrics.aggregate({
     where: {
-      campaign: { tenantId },
       collectedAt: { gte: weekStart },
     },
     _sum: { spend: true, conversions: true, impressions: true, clicks: true },
@@ -198,13 +192,13 @@ export async function generateWeeklyReport(tenantId: string) {
 
   // Lead pipeline
   const newLeads = await prisma.lead.count({
-    where: { tenantId, createdAt: { gte: weekStart } },
+    where: { createdAt: { gte: weekStart } },
   });
   const qualifiedLeads = await prisma.lead.count({
-    where: { tenantId, temperature: { in: ['hot', 'warm'] }, updatedAt: { gte: weekStart } },
+    where: { temperature: { in: ['hot', 'warm'] }, updatedAt: { gte: weekStart } },
   });
   const convertedLeads = await prisma.lead.count({
-    where: { tenantId, convertedAt: { gte: weekStart } },
+    where: { convertedAt: { gte: weekStart } },
   });
 
   // Build context for Claude
@@ -261,7 +255,7 @@ Sois concis, actionnable et data-driven.`,
 
   // Send report via email to owners/admins
   const recipients = await prisma.platformUser.findMany({
-    where: { tenantId, role: { in: ['owner', 'admin'] } },
+    where: { role: { in: ['owner', 'admin'] } },
     select: { email: true },
   });
 
@@ -291,15 +285,112 @@ Sois concis, actionnable et data-driven.`,
   return { period: `${weekStart.toISOString().slice(0, 10)} → ${now.toISOString().slice(0, 10)}`, report, recipientCount: recipients.length };
 }
 
+// ─── This Week Overview ─────────────────────────────────────────
+
+export async function getThisWeekOverview() {
+  const now = new Date();
+  // Start of week (Monday)
+  const dayOfWeek = now.getUTCDay();
+  const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const weekStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - mondayOffset));
+
+  // Posts published this week
+  const postsPublished = await prisma.contentPiece.count({
+    where: { status: 'published', publishedAt: { gte: weekStart } },
+  });
+
+  // Posts scheduled (upcoming)
+  const postsScheduled = await prisma.contentSchedule.count({
+    where: { status: 'scheduled', scheduledAt: { gte: now } },
+  });
+
+  // Pending approvals
+  const pendingApprovals = await prisma.approvalQueue.count({
+    where: { status: 'pending' },
+  });
+
+  // Top post this week
+  const topPost = await prisma.contentPiece.findFirst({
+    where: { status: 'published', publishedAt: { gte: weekStart } },
+    orderBy: { engagementScore: 'desc' },
+    select: {
+      id: true, title: true, platform: true, engagementScore: true, publishedAt: true,
+    },
+  });
+
+  // New leads this week
+  const newLeads = await prisma.lead.count({
+    where: { createdAt: { gte: weekStart } },
+  });
+
+  // Hot leads
+  const hotLeads = await prisma.lead.count({
+    where: { temperature: 'hot', status: { not: 'converted' } },
+  });
+
+  // Week engagement totals
+  const weekMetrics = await prisma.contentMetrics.aggregate({
+    where: { collectedAt: { gte: weekStart } },
+    _sum: { impressions: true, engagements: true, likes: true, comments: true, shares: true },
+  });
+
+  // Upcoming schedules (next 7 days)
+  const upcomingSchedules = await prisma.contentSchedule.findMany({
+    where: {
+      status: 'scheduled',
+      scheduledAt: { gte: now, lte: new Date(now.getTime() + 7 * 24 * 3600_000) },
+    },
+    include: {
+      contentPiece: { select: { id: true, title: true, platform: true, mediaUrl: true } },
+      socialAccount: { select: { platformUsername: true, platform: true } },
+    },
+    orderBy: { scheduledAt: 'asc' },
+    take: 10,
+  });
+
+  // Action items
+  const actionItems: { type: string; label: string; count: number; priority: string }[] = [];
+  if (pendingApprovals > 0) {
+    actionItems.push({ type: 'approval', label: 'Approbations en attente', count: pendingApprovals, priority: 'high' });
+  }
+  if (hotLeads > 0) {
+    actionItems.push({ type: 'leads', label: 'Leads chauds à contacter', count: hotLeads, priority: 'high' });
+  }
+
+  const failedSchedules = await prisma.contentSchedule.count({
+    where: { status: 'failed' },
+  });
+  if (failedSchedules > 0) {
+    actionItems.push({ type: 'error', label: 'Publications échouées', count: failedSchedules, priority: 'critical' });
+  }
+
+  return {
+    period: { from: weekStart.toISOString(), to: now.toISOString() },
+    stats: {
+      postsPublished,
+      postsScheduled,
+      pendingApprovals,
+      newLeads,
+      hotLeads,
+      impressions: weekMetrics._sum.impressions ?? 0,
+      engagements: weekMetrics._sum.engagements ?? 0,
+      likes: weekMetrics._sum.likes ?? 0,
+      comments: weekMetrics._sum.comments ?? 0,
+      shares: weekMetrics._sum.shares ?? 0,
+    },
+    topPost,
+    upcomingSchedules,
+    actionItems,
+  };
+}
+
 // ─── Approval Queue with Preview (Story 9.4) ────────────────────
 
 export async function getApprovalQueue(
-  tenantId: string,
   filters?: { status?: string; entityType?: string },
 ) {
   const approvals = await prisma.approvalQueue.findMany({
     where: {
-      tenantId,
       ...(filters?.status ? { status: filters.status } : {}),
       ...(filters?.entityType ? { entityType: filters.entityType } : {}),
     },

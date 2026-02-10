@@ -60,7 +60,6 @@ protectedRouter.post(
   validate(submitSchema),
   asyncHandler(async (req, res) => {
     const approval = await approvalService.submitForApproval(
-      req.user!.tenantId,
       req.body.entityType,
       req.body.entityId,
       req.body.assigneeId,
@@ -75,7 +74,7 @@ protectedRouter.get(
   '/queue',
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
-    const approvals = await reportingService.getApprovalQueue(req.user!.tenantId, {
+    const approvals = await reportingService.getApprovalQueue({
       status: req.query.status as string | undefined,
       entityType: req.query.entityType as string | undefined,
     });
@@ -88,7 +87,7 @@ protectedRouter.get<{ id: string }>(
   '/queue/:id',
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
-    const approval = await approvalService.getApprovalById(req.user!.tenantId, req.params.id);
+    const approval = await approvalService.getApprovalById(req.params.id);
     res.json({ success: true, data: approval });
   }),
 );
@@ -100,7 +99,6 @@ protectedRouter.post<{ id: string }>(
   validate(resolveSchema),
   asyncHandler(async (req, res) => {
     const approval = await approvalService.resolveById(
-      req.user!.tenantId,
       req.params.id,
       req.body.action,
       req.user!.userId,

@@ -1,18 +1,8 @@
-import crypto from 'crypto';
 import { prisma } from '../lib/prisma';
+import { encrypt, decrypt } from '../lib/encryption';
 import { sendSlackNotification } from '../lib/slack';
-
-const ENCRYPTION_KEY = process.env.TOKEN_ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
-
-// ─── Token Encryption Helpers ────────────────────────────────────
-
-function encrypt(text: string): string {
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', Buffer.from(ENCRYPTION_KEY, 'hex'), iv);
-  const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return `${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`;
-}
+import { refreshLinkedInToken } from '../lib/linkedin';
+import { refreshTwitterToken } from '../lib/twitter';
 
 // ─── OAuth Token Refresh (Story 10.1 — MKT-401) ─────────────────
 
@@ -33,7 +23,7 @@ export async function refreshExpiringTokens(): Promise<RefreshResult[]> {
       refreshTokenEncrypted: { not: null },
     },
     include: {
-      brand: { select: { name: true, tenantId: true } },
+      brand: { select: { name: true } },
     },
   });
 
@@ -61,7 +51,7 @@ export async function refreshExpiringTokens(): Promise<RefreshResult[]> {
 
       // Urgent admin notification on failure
       await sendSlackNotification({
-        text: `[URGENT] Échec refresh OAuth ${account.platform} — ${account.brand.name} (${account.platformUsername ?? account.id}): ${errorMsg}`,
+        text: `[URGENT] Echec refresh OAuth ${account.platform} — ${account.brand.name} (${account.platformUsername ?? account.id}): ${errorMsg}`,
       });
 
       results.push({ accountId: account.id, platform: account.platform, refreshed: false, error: errorMsg });
@@ -77,7 +67,7 @@ export async function refreshExpiringTokens(): Promise<RefreshResult[]> {
   return results;
 }
 
-// ─── Platform-Specific Token Refresh (mock in dev) ───────────────
+// ─── Platform-Specific Token Refresh ────────────────────────────
 
 interface TokenResponse {
   accessToken: string;
@@ -87,19 +77,32 @@ interface TokenResponse {
 
 async function refreshPlatformToken(
   platform: string,
-  _refreshTokenEncrypted: string,
+  refreshTokenEncrypted: string,
 ): Promise<TokenResponse> {
-  // In production: decrypt refresh token, call platform OAuth refresh endpoint
-  // LinkedIn: POST https://www.linkedin.com/oauth/v2/accessToken (grant_type=refresh_token)
-  // Facebook: GET https://graph.facebook.com/v19.0/oauth/access_token (grant_type=fb_exchange_token)
-  // TikTok: POST https://open.tiktokapis.com/v2/oauth/token/ (grant_type=refresh_token)
-  // Twitter: POST https://api.twitter.com/2/oauth2/token (grant_type=refresh_token)
+  const refreshToken = decrypt(refreshTokenEncrypted);
 
-  console.log(`[DEV] Refreshing ${platform} OAuth token (mock)`);
+  switch (platform) {
+    case 'linkedin': {
+      const result = await refreshLinkedInToken(refreshToken);
+      return {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresAt: new Date(Date.now() + result.expiresIn * 1000),
+      };
+    }
 
-  return {
-    accessToken: `mock_access_${platform}_${Date.now()}`,
-    refreshToken: `mock_refresh_${platform}_${Date.now()}`,
-    expiresAt: new Date(Date.now() + 60 * 24 * 3600_000), // 60 days
-  };
+    case 'twitter': {
+      const result = await refreshTwitterToken(refreshToken);
+      return {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresAt: new Date(Date.now() + result.expiresIn * 1000),
+      };
+    }
+
+    default: {
+      console.log(`[OAuth Refresh] Platform ${platform} not supported for refresh`);
+      throw new Error(`Unsupported platform for OAuth refresh: ${platform}`);
+    }
+  }
 }

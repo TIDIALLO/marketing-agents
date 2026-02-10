@@ -10,16 +10,7 @@ export const ROLE_HIERARCHY: Record<Role, number> = {
 };
 
 export const PERMISSIONS = {
-  // Tenant management
-  'tenant:manage': ['owner'] as Role[],
-  'tenant:branding': ['owner'] as Role[],
-
-  // User management
-  'users:invite': ['owner', 'admin'] as Role[],
-  'users:manage': ['owner', 'admin'] as Role[],
-
-  // Organization & brands
-  'organizations:create': ['owner'] as Role[],
+  // Brands
   'brands:create': ['owner', 'admin'] as Role[],
   'brands:edit': ['owner', 'admin', 'editor'] as Role[],
   'brands:view': ['owner', 'admin', 'editor', 'viewer'] as Role[],

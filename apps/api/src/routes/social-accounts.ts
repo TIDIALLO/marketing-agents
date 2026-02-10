@@ -37,7 +37,6 @@ router.post(
   validate(connectSocialSchema),
   asyncHandler(async (req, res) => {
     const account = await socialAccountService.connectSocialAccount(
-      req.user!.tenantId,
       req.body,
     );
     res.status(201).json({ success: true, data: account });
@@ -57,7 +56,7 @@ router.get(
       });
       return;
     }
-    const accounts = await socialAccountService.listSocialAccounts(req.user!.tenantId, brandId);
+    const accounts = await socialAccountService.listSocialAccounts(brandId);
     res.json({ success: true, data: accounts });
   }),
 );
@@ -67,7 +66,7 @@ router.delete<{ id: string }>(
   '/:id',
   requirePermission('settings:social'),
   asyncHandler(async (req, res) => {
-    await socialAccountService.disconnectSocialAccount(req.user!.tenantId, req.params.id);
+    await socialAccountService.disconnectSocialAccount(req.params.id);
     res.json({ success: true, data: { message: 'Compte social déconnecté' } });
   }),
 );
@@ -81,7 +80,6 @@ router.post<{ id: string }>(
   validate(connectAdSchema),
   asyncHandler(async (req, res) => {
     const adAccount = await socialAccountService.connectAdAccount(
-      req.user!.tenantId,
       req.params.id,
       req.body,
     );
@@ -95,7 +93,6 @@ router.get<{ id: string }>(
   requirePermission('settings:social'),
   asyncHandler(async (req, res) => {
     const adAccounts = await socialAccountService.listAdAccounts(
-      req.user!.tenantId,
       req.params.id,
     );
     res.json({ success: true, data: adAccounts });
@@ -107,7 +104,7 @@ router.delete<{ adAccountId: string }>(
   '/ad-accounts/:adAccountId',
   requirePermission('settings:social'),
   asyncHandler(async (req, res) => {
-    await socialAccountService.disconnectAdAccount(req.user!.tenantId, req.params.adAccountId);
+    await socialAccountService.disconnectAdAccount(req.params.adAccountId);
     res.json({ success: true, data: { message: 'Compte publicitaire déconnecté' } });
   }),
 );

@@ -4,14 +4,12 @@ export type Role = 'owner' | 'admin' | 'editor' | 'viewer';
 
 export interface JwtPayload {
   userId: string;
-  tenantId: string;
   role: Role;
   email: string;
 }
 
 export interface User {
   id: string;
-  tenantId: string;
   email: string;
   firstName: string;
   lastName: string;

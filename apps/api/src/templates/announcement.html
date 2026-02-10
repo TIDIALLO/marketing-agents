@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: {{_width}}px; height: {{_height}}px;
+    display: flex; align-items: center; justify-content: center;
+    background: {{brandColor}};
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    overflow: hidden;
+  }
+  .card { text-align: center; color: white; padding: 60px; width: 85%; }
+  .headline { font-size: 48px; font-weight: 900; margin-bottom: 20px; line-height: 1.15; text-transform: uppercase; letter-spacing: 1px; }
+  .subheadline { font-size: 24px; opacity: 0.85; margin-bottom: 40px; line-height: 1.4; }
+  .cta {
+    display: inline-block; padding: 16px 40px; border-radius: 8px;
+    background: white; color: {{brandColor}}; font-size: 22px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .brand { position: absolute; bottom: 24px; right: 32px; font-size: 16px; opacity: 0.5; font-weight: 600; color: white; }
+  .stripe { position: absolute; top: 0; left: 0; right: 0; height: 6px; background: rgba(255,255,255,0.3); }
+</style>
+</head>
+<body>
+  <div class="stripe"></div>
+  <div class="card">
+    <h1 class="headline">{{headline}}</h1>
+    <p class="subheadline">{{subheadline}}</p>
+    <span class="cta">{{ctaText}}</span>
+  </div>
+  <div class="brand">{{brandName}}</div>
+</body>
+</html>

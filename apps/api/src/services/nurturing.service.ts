@@ -3,10 +3,107 @@ import { prisma } from '../lib/prisma';
 import { AppError } from '../lib/errors';
 import { claudeGenerate } from '../lib/ai';
 import { sendSlackNotification } from '../lib/slack';
-import { emitToTenant } from '../lib/socket';
+import { emitEvent } from '../lib/socket';
 import { publishEvent } from '../lib/redis';
 import { triggerWorkflow } from '../lib/n8n';
 import { sendNurturingEmail, sendEscalationEmail } from '../lib/email';
+
+// ─── Conversation Context Builder ───────────────────────────
+// Builds rich context from full interaction history for better Claude prompts
+
+interface ConversationContext {
+  historyText: string;
+  sentimentTrend: string;
+  lastIntent: string | null;
+  interactionCount: number;
+  daysSinceFirstContact: number;
+  objections: string[];
+  topics: string[];
+}
+
+async function buildConversationContext(leadId: string): Promise<ConversationContext> {
+  const interactions = await prisma.leadInteraction.findMany({
+    where: { leadId },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      direction: true,
+      channel: true,
+      content: true,
+      aiSentiment: true,
+      aiIntent: true,
+      createdAt: true,
+    },
+  });
+
+  // Build readable conversation history
+  const historyText = interactions
+    .map((i) => {
+      const dateStr = i.createdAt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+      const who = i.direction === 'inbound' ? 'LEAD' : 'NOUS';
+      return `[${dateStr} | ${who} | ${i.channel}] ${i.content.slice(0, 300)}`;
+    })
+    .join('\n');
+
+  // Sentiment trend analysis
+  const sentiments = interactions
+    .filter((i) => i.aiSentiment)
+    .map((i) => i.aiSentiment!);
+  const recentSentiments = sentiments.slice(-5);
+  const sentimentTrend = recentSentiments.length > 0
+    ? analyzeSentimentTrend(recentSentiments)
+    : 'inconnu';
+
+  // Extract objections from history
+  const objections = interactions
+    .filter((i) => i.aiIntent === 'objection')
+    .map((i) => i.content.slice(0, 150));
+
+  // Extract topics discussed
+  const topics = [...new Set(
+    interactions
+      .filter((i) => i.aiIntent)
+      .map((i) => i.aiIntent!),
+  )];
+
+  // Last intent
+  const lastInbound = interactions.filter((i) => i.direction === 'inbound').at(-1);
+  const lastIntent = lastInbound?.aiIntent ?? null;
+
+  // Days since first contact
+  const firstContact = interactions[0]?.createdAt ?? new Date();
+  const daysSinceFirstContact = Math.floor(
+    (Date.now() - firstContact.getTime()) / (24 * 3600_000),
+  );
+
+  return {
+    historyText,
+    sentimentTrend,
+    lastIntent,
+    interactionCount: interactions.length,
+    daysSinceFirstContact,
+    objections,
+    topics,
+  };
+}
+
+function analyzeSentimentTrend(sentiments: string[]): string {
+  const scores: Record<string, number> = { positive: 1, neutral: 0, negative: -1 };
+  if (sentiments.length < 2) return sentiments[0] ?? 'inconnu';
+
+  const recent = sentiments.slice(-3).map((s) => scores[s] ?? 0);
+  const earlier = sentiments.slice(0, -3).map((s) => scores[s] ?? 0);
+
+  const recentAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
+  const earlierAvg = earlier.length > 0
+    ? earlier.reduce((a, b) => a + b, 0) / earlier.length
+    : 0;
+
+  if (recentAvg > earlierAvg + 0.3) return 'en amélioration';
+  if (recentAvg < earlierAvg - 0.3) return 'en dégradation';
+  if (recentAvg > 0.3) return 'positif stable';
+  if (recentAvg < -0.3) return 'négatif stable';
+  return 'neutre stable';
+}
 
 interface SequenceStep {
   order: number;
@@ -18,38 +115,34 @@ interface SequenceStep {
 // ─── Sequence Management (Story 7.1) ─────────────────────────
 
 export async function createSequence(
-  tenantId: string,
   data: { name: string; steps: SequenceStep[] },
 ) {
   return prisma.leadSequence.create({
     data: {
-      tenantId,
       name: data.name,
       steps: data.steps as unknown as Prisma.InputJsonValue,
     },
   });
 }
 
-export async function listSequences(tenantId: string) {
+export async function listSequences() {
   return prisma.leadSequence.findMany({
-    where: { tenantId },
     include: { _count: { select: { enrollments: true } } },
     orderBy: { createdAt: 'desc' },
   });
 }
 
-export async function getSequenceById(tenantId: string, id: string) {
-  const seq = await prisma.leadSequence.findFirst({ where: { id, tenantId } });
+export async function getSequenceById(id: string) {
+  const seq = await prisma.leadSequence.findFirst({ where: { id } });
   if (!seq) throw new AppError(404, 'NOT_FOUND', 'Séquence introuvable');
   return seq;
 }
 
 export async function updateSequence(
-  tenantId: string,
   id: string,
   data: { name?: string; steps?: SequenceStep[] },
 ) {
-  const seq = await prisma.leadSequence.findFirst({ where: { id, tenantId } });
+  const seq = await prisma.leadSequence.findFirst({ where: { id } });
   if (!seq) throw new AppError(404, 'NOT_FOUND', 'Séquence introuvable');
 
   return prisma.leadSequence.update({
@@ -61,8 +154,8 @@ export async function updateSequence(
   });
 }
 
-export async function deleteSequence(tenantId: string, id: string) {
-  const seq = await prisma.leadSequence.findFirst({ where: { id, tenantId } });
+export async function deleteSequence(id: string) {
+  const seq = await prisma.leadSequence.findFirst({ where: { id } });
   if (!seq) throw new AppError(404, 'NOT_FOUND', 'Séquence introuvable');
 
   await prisma.leadSequence.delete({ where: { id } });
@@ -70,11 +163,11 @@ export async function deleteSequence(tenantId: string, id: string) {
 
 // ─── Enrollment (Story 7.1) ──────────────────────────────────
 
-export async function enrollLead(tenantId: string, leadId: string, sequenceId: string) {
-  const lead = await prisma.lead.findFirst({ where: { id: leadId, tenantId } });
+export async function enrollLead(leadId: string, sequenceId: string) {
+  const lead = await prisma.lead.findFirst({ where: { id: leadId } });
   if (!lead) throw new AppError(404, 'NOT_FOUND', 'Lead introuvable');
 
-  const seq = await prisma.leadSequence.findFirst({ where: { id: sequenceId, tenantId } });
+  const seq = await prisma.leadSequence.findFirst({ where: { id: sequenceId } });
   if (!seq) throw new AppError(404, 'NOT_FOUND', 'Séquence introuvable');
 
   const steps = seq.steps as unknown as SequenceStep[];
@@ -123,10 +216,21 @@ export async function executeFollowUps() {
 
     const lead = enrollment.lead;
 
-    // Personalize message with Claude
+    // Build full conversation context for intelligent follow-up
+    const context = await buildConversationContext(lead.id);
+
+    // Personalize message with Claude using rich context
     const personalizedMessage = await claudeGenerate(
       `Tu es un expert en nurturing B2B. Personnalise ce message de follow-up pour le lead.
-Ton: chaleureux, professionnel, personnalisé.
+
+RÈGLES CRITIQUES:
+- Ne JAMAIS répéter un argument déjà utilisé dans les messages précédents
+- Adapter le ton selon la tendance sentiment : ${context.sentimentTrend}
+- Si des objections ont été soulevées, les adresser subtilement
+- ${context.interactionCount > 5 ? 'Le lead est engagé depuis longtemps — être plus direct et concis' : 'Relation encore jeune — construire la confiance'}
+- ${context.lastIntent === 'needs_info' ? 'Le lead cherche des informations — fournir de la valeur concrète' : ''}
+- ${context.lastIntent === 'objection' ? 'Dernière interaction = objection — être empathique et apporter des preuves' : ''}
+
 Canal: ${currentStep.channel}
 ${currentStep.channel === 'whatsapp' ? 'Format: court, direct, 2-3 phrases max' : 'Format: email professionnel, 4-6 phrases'}
 Réponds directement avec le message personnalisé (pas de JSON).`,
@@ -135,6 +239,15 @@ Entreprise: ${lead.company ?? 'non renseignée'}
 Température: ${lead.temperature ?? 'inconnue'}
 Score: ${lead.score ?? 'non scoré'}
 Source: ${lead.source}
+Jours depuis premier contact: ${context.daysSinceFirstContact}
+Nombre d'interactions: ${context.interactionCount}
+Tendance sentiment: ${context.sentimentTrend}
+Intentions détectées: ${context.topics.join(', ') || 'aucune'}
+${context.objections.length > 0 ? `Objections passées:\n${context.objections.map((o) => `- ${o}`).join('\n')}` : ''}
+
+Historique conversation:
+${context.historyText || '(première interaction)'}
+
 Étape ${enrollment.currentStep + 1}/${steps.length}
 Prompt de base: ${currentStep.bodyPrompt}`,
     );
@@ -193,45 +306,57 @@ async function sendWhatsAppMessage(phone: string, message: string): Promise<void
 // ─── Response Analysis & Intent Detection (Story 7.3) ────────
 
 export async function analyzeResponse(
-  tenantId: string,
   leadId: string,
   data: { channel: string; content: string },
 ) {
   const lead = await prisma.lead.findFirst({
-    where: { id: leadId, tenantId },
-    include: {
-      interactions: { orderBy: { createdAt: 'desc' }, take: 5 },
-    },
+    where: { id: leadId },
   });
   if (!lead) throw new AppError(404, 'NOT_FOUND', 'Lead introuvable');
 
-  const recentContext = lead.interactions
-    .map((i) => `[${i.direction}/${i.channel}] ${i.content.slice(0, 200)}`)
-    .join('\n');
+  // Build full conversation context
+  const context = await buildConversationContext(leadId);
 
-  // Claude analysis
+  // Claude analysis with rich context
   const aiResponse = await claudeGenerate(
-    `Tu es un expert en analyse de réponses leads B2B. Analyse ce message et retourne un JSON:
+    `Tu es un expert en analyse de réponses leads B2B. Analyse ce message avec le contexte complet de la conversation.
+
+Considère:
+- La tendance sentiment globale: ${context.sentimentTrend}
+- Le nombre d'interactions (${context.interactionCount}) et la durée de la relation (${context.daysSinceFirstContact} jours)
+- Les objections précédentes: ${context.objections.length > 0 ? context.objections.join('; ') : 'aucune'}
+- Les intentions détectées: ${context.topics.join(', ') || 'aucune'}
+
+Retourne un JSON:
 {
   "sentiment": "positive"|"neutral"|"negative",
   "intent": "interested"|"needs_info"|"not_ready"|"objection"|"ready_to_buy"|"unsubscribe",
+  "objectionCategory": "price"|"trust"|"feature"|"timing"|null,
   "temperatureChange": "hot"|"warm"|"cold"|null,
   "reasoning": "explication courte",
-  "suggestedAction": "action recommandée"
+  "suggestedAction": "action recommandée",
+  "urgency": "high"|"medium"|"low"
 }
 Réponds uniquement avec le JSON.`,
     `Lead: ${lead.firstName} ${lead.lastName} (${lead.temperature}, score ${lead.score})
+Entreprise: ${lead.company ?? 'N/A'}
 Canal: ${data.channel}
-Historique récent:\n${recentContext}
-\nNouveau message du lead:\n${data.content}`,
+
+Historique complet conversation:
+${context.historyText || '(première interaction)'}
+
+Nouveau message du lead:
+${data.content}`,
   );
 
   let analysis: {
     sentiment: string;
     intent: string;
+    objectionCategory: string | null;
     temperatureChange: string | null;
     reasoning: string;
     suggestedAction: string;
+    urgency: string;
   };
   try {
     analysis = JSON.parse(aiResponse);
@@ -239,13 +364,15 @@ Historique récent:\n${recentContext}
     analysis = {
       sentiment: 'neutral',
       intent: 'needs_info',
+      objectionCategory: null,
       temperatureChange: null,
       reasoning: aiResponse,
       suggestedAction: 'Continuer le nurturing',
+      urgency: 'medium',
     };
   }
 
-  // Record inbound interaction
+  // Record inbound interaction with enriched data
   const interaction = await prisma.leadInteraction.create({
     data: {
       leadId: lead.id,
@@ -265,23 +392,38 @@ Historique récent:\n${recentContext}
     });
   }
 
-  // Story 7.3 & 7.4: Act based on intent
+  // Act based on intent with urgency awareness
   if (analysis.intent === 'ready_to_buy') {
-    // Trigger booking
     triggerWorkflow('mkt-305', {
       leadId: lead.id,
-      tenantId,
       brandId: lead.brandId,
       score: lead.score,
     }).catch((err) => console.error('[n8n] MKT-305 trigger failed:', err));
+
+    emitEvent('lead:ready_to_buy', {
+      leadId: lead.id,
+      name: `${lead.firstName} ${lead.lastName}`,
+      urgency: analysis.urgency,
+    });
   } else if (analysis.intent === 'objection') {
-    // Story 7.4: Generate objection response
-    await handleObjection(tenantId, lead.id, data.channel, data.content, analysis.reasoning);
+    await handleObjection(
+      lead.id,
+      data.channel,
+      data.content,
+      analysis.reasoning,
+      analysis.objectionCategory,
+    );
   } else if (analysis.intent === 'unsubscribe') {
-    // Pause all active enrollments
     await prisma.leadSequenceEnrollment.updateMany({
       where: { leadId: lead.id, status: 'active' },
       data: { status: 'paused' },
+    });
+  }
+
+  // High urgency leads → notify immediately
+  if (analysis.urgency === 'high' && analysis.intent !== 'unsubscribe') {
+    await sendSlackNotification({
+      text: `Alerte lead urgent : ${lead.firstName} ${lead.lastName} (${lead.company ?? 'N/A'}) — ${analysis.intent} — ${analysis.reasoning}`,
     });
   }
 
@@ -291,27 +433,52 @@ Historique récent:\n${recentContext}
 // ─── Objection Handling (Story 7.4) ──────────────────────────
 
 async function handleObjection(
-  tenantId: string,
   leadId: string,
   channel: string,
   objectionContent: string,
   reasoning: string,
+  category?: string | null,
 ) {
   const lead = await prisma.lead.findFirst({
-    where: { id: leadId, tenantId },
+    where: { id: leadId },
   });
   if (!lead) return;
 
+  // Build conversation context for smarter objection handling
+  const context = await buildConversationContext(leadId);
+
+  // Category-specific handling strategies
+  const categoryStrategy: Record<string, string> = {
+    price: 'Mettre en avant le ROI, proposer un essai gratuit, comparer au coût de ne rien faire. Ne pas baisser le prix directement.',
+    trust: 'Partager des témoignages clients, proposer une démo en direct, offrir des garanties.',
+    feature: 'Expliquer comment les fonctionnalités existantes résolvent le besoin, ou noter la suggestion pour la roadmap.',
+    timing: 'Respecter le timing du lead, proposer de rester en contact léger, offrir des ressources utiles en attendant.',
+  };
+
+  const strategy = category && categoryStrategy[category]
+    ? `\nSTRATÉGIE SPÉCIFIQUE (${category}): ${categoryStrategy[category]}`
+    : '';
+
   const response = await claudeGenerate(
-    `Tu es un commercial expert. Réponds à cette objection de manière empathique et constructive.
+    `Tu es un commercial expert B2B. Réponds à cette objection de manière empathique et constructive.
+${strategy}
+
+CONTEXTE CONVERSATION:
+- ${context.interactionCount} interactions sur ${context.daysSinceFirstContact} jours
+- Tendance sentiment: ${context.sentimentTrend}
+- ${context.objections.length > 1 ? `C'est la ${context.objections.length}ème objection — le lead hésite, être rassurant sans insister` : 'Première objection — traiter avec soin'}
+
 Ton: compréhensif, professionnel, sans être insistant.
 Canal: ${channel}
 ${channel === 'whatsapp' ? 'Format: court, 2-3 phrases' : 'Format: email court, 3-4 phrases'}
 Réponds directement avec le message (pas de JSON).`,
     `Lead: ${lead.firstName} ${lead.lastName}
 Entreprise: ${lead.company ?? 'N/A'}
+Score: ${lead.score ?? 'N/A'}/100
 Objection: ${objectionContent}
-Analyse: ${reasoning}`,
+Catégorie: ${category ?? 'non catégorisée'}
+Analyse: ${reasoning}
+${context.objections.length > 0 ? `\nObjections précédentes:\n${context.objections.map((o) => `- ${o}`).join('\n')}` : ''}`,
   );
 
   // Send response on same channel
@@ -333,18 +500,24 @@ Analyse: ${reasoning}`,
       content: response,
     },
   });
+
+  // Publish objection event for feedback loop (Task 2.4)
+  await publishEvent('mkt:agent:3:objection', {
+    leadId: lead.id,
+    category: category ?? 'unknown',
+    objection: objectionContent.slice(0, 500),
+  });
 }
 
 // ─── Human Escalation (Story 7.5) ────────────────────────────
 
 export async function escalateToHuman(
-  tenantId: string,
   leadId: string,
   assignTo: string,
   reason?: string,
 ) {
   const lead = await prisma.lead.findFirst({
-    where: { id: leadId, tenantId },
+    where: { id: leadId },
     include: {
       interactions: { orderBy: { createdAt: 'desc' }, take: 10 },
     },
@@ -417,7 +590,7 @@ Historique interactions:\n${interactionHistory}`,
   }
 
   // Real-time WebSocket
-  emitToTenant(tenantId, 'lead:escalated', {
+  emitEvent('lead:escalated', {
     leadId: lead.id,
     name: `${lead.firstName} ${lead.lastName}`,
     assignedTo: assignTo,
@@ -429,12 +602,11 @@ Historique interactions:\n${interactionHistory}`,
 // ─── Conversion Tracking (Story 7.6) ─────────────────────────
 
 export async function trackConversion(
-  tenantId: string,
   leadId: string,
   data: { conversionValue: number; source?: string },
 ) {
   const lead = await prisma.lead.findFirst({
-    where: { id: leadId, tenantId },
+    where: { id: leadId },
     include: {
       interactions: { select: { channel: true, createdAt: true } },
     },
@@ -464,7 +636,6 @@ export async function trackConversion(
   // Publish conversion event to Redis for agents 1 & 2
   await publishEvent('mkt:agent:3:conversion', {
     leadId: lead.id,
-    tenantId,
     conversionValue: data.conversionValue,
     touchpoints,
     valuePerTouch,
@@ -472,7 +643,7 @@ export async function trackConversion(
   });
 
   // Real-time WebSocket
-  emitToTenant(tenantId, 'lead:converted', {
+  emitEvent('lead:converted', {
     leadId: lead.id,
     name: `${lead.firstName} ${lead.lastName}`,
     conversionValue: data.conversionValue,

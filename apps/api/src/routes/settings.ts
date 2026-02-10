@@ -4,14 +4,6 @@ import { validate } from '../middleware/validate';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { requirePermission } from '../middleware/requireRole';
 import { prisma } from '../lib/prisma';
-import { AppError } from '../lib/errors';
-
-const brandingSchema = z.object({
-  logo: z.string().url('URL logo invalide').nullable().optional(),
-  primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Format couleur invalide (#RRGGBB)').nullable().optional(),
-  secondaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Format couleur invalide (#RRGGBB)').nullable().optional(),
-  customDomain: z.string().min(1).nullable().optional(),
-});
 
 const notificationPrefsSchema = z.object({
   slack: z.boolean(),
@@ -20,49 +12,6 @@ const notificationPrefsSchema = z.object({
 });
 
 const router = Router();
-
-// ─── Tenant Branding (Story 2.5) ─────────────────────────────
-
-// GET /api/admin/tenants/branding — get current branding
-router.get(
-  '/tenants/branding',
-  requirePermission('tenant:branding'),
-  asyncHandler(async (req, res) => {
-    const tenant = await prisma.tenant.findUnique({
-      where: { id: req.user!.tenantId },
-      select: {
-        logo: true,
-        primaryColor: true,
-        secondaryColor: true,
-        customDomain: true,
-      },
-    });
-    if (!tenant) {
-      throw new AppError(404, 'NOT_FOUND', 'Tenant introuvable');
-    }
-    res.json({ success: true, data: tenant });
-  }),
-);
-
-// PUT /api/admin/tenants/branding — update branding
-router.put(
-  '/tenants/branding',
-  requirePermission('tenant:branding'),
-  validate(brandingSchema),
-  asyncHandler(async (req, res) => {
-    const tenant = await prisma.tenant.update({
-      where: { id: req.user!.tenantId },
-      data: req.body,
-      select: {
-        logo: true,
-        primaryColor: true,
-        secondaryColor: true,
-        customDomain: true,
-      },
-    });
-    res.json({ success: true, data: tenant });
-  }),
-);
 
 // ─── Notification Preferences (Story 2.6) ────────────────────
 

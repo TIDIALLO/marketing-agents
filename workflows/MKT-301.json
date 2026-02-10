@@ -1,0 +1,218 @@
+{
+  "name": "MKT-301 Lead Capture & Scoring",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mkt-301",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "id": "trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nfor (const item of items) {\n  if (!item.json.leadId) {\n    throw new Error('Missing required field: leadId');\n  }\n}\nreturn items;"
+      },
+      "id": "validate",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://mkt-api:4000/api/internal/leads/score/{{ $json.leadId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.MKT_API_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "score-lead",
+      "name": "Score Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "output": 0,
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.data?.temperature }}",
+                    "value2": "hot"
+                  }
+                ]
+              }
+            },
+            {
+              "output": 1,
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.data?.temperature }}",
+                    "value2": "warm"
+                  }
+                ]
+              }
+            },
+            {
+              "output": 2,
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.data?.temperature }}",
+                    "value2": "cold"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "id": "switch-temperature",
+      "name": "Switch Temperature",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://mkt-api:4000/api/internal/leads/book/{{ $json.data?.leadId || $json.leadId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.MKT_API_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "book-hot",
+      "name": "Book Meeting (Hot)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1100, 150]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mkt-api:4000/api/internal/nurturing/enroll",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.MKT_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ leadId: $json.data?.leadId || $json.leadId, sequenceType: 'warm' }) }}",
+        "options": {}
+      },
+      "id": "enroll-warm",
+      "name": "Enroll Nurturing (Warm)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconsole.log(`Cold lead ${items[0]?.json?.data?.leadId || items[0]?.json?.leadId} — no immediate action`);\nreturn items;"
+      },
+      "id": "cold-log",
+      "name": "Log Cold Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 450]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [250, 650]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mkt-api:4000/api/webhooks/n8n-error",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.MKT_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ workflow: 'MKT-301', error: $json.execution?.error?.message || 'Unknown error', executionId: $json.execution?.id }) }}",
+        "options": {}
+      },
+      "id": "report-error",
+      "name": "Report Error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 650]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [{ "node": "Validate Input", "type": "main", "index": 0 }]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [{ "node": "Score Lead", "type": "main", "index": 0 }]
+      ]
+    },
+    "Score Lead": {
+      "main": [
+        [{ "node": "Switch Temperature", "type": "main", "index": 0 }]
+      ]
+    },
+    "Switch Temperature": {
+      "main": [
+        [{ "node": "Book Meeting (Hot)", "type": "main", "index": 0 }],
+        [{ "node": "Enroll Nurturing (Warm)", "type": "main", "index": 0 }],
+        [{ "node": "Log Cold Lead", "type": "main", "index": 0 }]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [{ "node": "Report Error", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "opportunity-hunter" }
+  ]
+}

@@ -8,7 +8,6 @@ export type CampaignObjective = 'awareness' | 'traffic' | 'leads' | 'conversions
 
 export interface AdCampaign {
   id: string;
-  tenantId: string;
   brandId: string;
   contentSignalId: string | null;
   name: string;

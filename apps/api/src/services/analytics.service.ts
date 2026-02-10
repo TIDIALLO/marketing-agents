@@ -9,7 +9,7 @@ interface DashboardFilters {
 
 // ─── Dashboard Overview (Story 5.5) ──────────────────────────
 
-export async function getDashboardData(tenantId: string, filters: DashboardFilters) {
+export async function getDashboardData(filters: DashboardFilters) {
   const dateFilter = {
     ...(filters.from ? { gte: filters.from } : {}),
     ...(filters.to ? { lte: filters.to } : {}),
@@ -17,7 +17,6 @@ export async function getDashboardData(tenantId: string, filters: DashboardFilte
   const hasDateFilter = filters.from || filters.to;
 
   const pieceWhere = {
-    tenantId,
     ...(filters.brandId ? { brandId: filters.brandId } : {}),
     ...(filters.platform ? { platform: filters.platform } : {}),
   };
@@ -60,7 +59,7 @@ export async function getDashboardData(tenantId: string, filters: DashboardFilte
 
   // Pending approvals
   const pendingApprovals = await prisma.approvalQueue.count({
-    where: { tenantId, status: 'pending' },
+    where: { status: 'pending' },
   });
 
   return {
@@ -84,12 +83,10 @@ export async function getDashboardData(tenantId: string, filters: DashboardFilte
 // ─── Top Posts (Story 5.5) ───────────────────────────────────
 
 export async function getTopPosts(
-  tenantId: string,
   filters: DashboardFilters & { limit?: number },
 ) {
   return prisma.contentPiece.findMany({
     where: {
-      tenantId,
       status: 'published',
       ...(filters.brandId ? { brandId: filters.brandId } : {}),
       ...(filters.platform ? { platform: filters.platform } : {}),
@@ -133,7 +130,6 @@ export async function getTopPosts(
 // ─── Engagement Trends (Story 5.5) ───────────────────────────
 
 export async function getTrends(
-  tenantId: string,
   filters: DashboardFilters & { days?: number },
 ) {
   const days = filters.days ?? 30;
@@ -144,7 +140,6 @@ export async function getTrends(
   const metrics = await prisma.contentMetrics.findMany({
     where: {
       contentPiece: {
-        tenantId,
         ...(filters.brandId ? { brandId: filters.brandId } : {}),
         ...(filters.platform ? { platform: filters.platform } : {}),
       },
@@ -202,11 +197,10 @@ export async function getTrends(
 
 // ─── Metrics History for a Single Piece ──────────────────────
 
-export async function getPieceMetricsHistory(tenantId: string, pieceId: string) {
+export async function getPieceMetricsHistory(pieceId: string) {
   return prisma.contentMetrics.findMany({
     where: {
       contentPieceId: pieceId,
-      contentPiece: { tenantId },
     },
     orderBy: { collectedAt: 'asc' },
   });

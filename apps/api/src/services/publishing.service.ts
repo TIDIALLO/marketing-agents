@@ -1,8 +1,10 @@
 import { prisma } from '../lib/prisma';
 import { AppError } from '../lib/errors';
 import { claudeGenerate, dalleGenerate } from '../lib/ai';
-import { uploadFromUrl } from '../lib/minio';
 import { sendSlackNotification } from '../lib/slack';
+import { decrypt } from '../lib/encryption';
+import { publishLinkedInPost } from '../lib/linkedin';
+import { publishTweet } from '../lib/twitter';
 import type { Platform } from '@synap6ia/shared';
 
 const PLATFORM_LIMITS: Record<string, number> = {
@@ -46,9 +48,9 @@ function getNextOptimalTime(platform: string): Date {
 
 // ─── Multi-Platform Adaptation (Story 4.4) ───────────────────
 
-export async function adaptToAllPlatforms(tenantId: string, pieceId: string) {
+export async function adaptToAllPlatforms(pieceId: string) {
   const sourcePiece = await prisma.contentPiece.findFirst({
-    where: { id: pieceId, tenantId, status: 'approved' },
+    where: { id: pieceId, status: 'approved' },
     include: {
       brand: {
         include: {
@@ -113,15 +115,13 @@ Réponds uniquement avec le JSON.`,
         ? ('1024x1792' as const)
         : ('1024x1024' as const);
       const imageUrl = await dalleGenerate(content.mediaPrompt, { size });
-      const date = new Date().toISOString().slice(0, 10);
-      const objectPath = `${sourcePiece.brand.organizationId}/variants/${date}_${pieceId}_${targetPlatform}.png`;
-      mediaUrl = await uploadFromUrl(objectPath, imageUrl);
+      // Use DALL-E URL directly
+      mediaUrl = imageUrl;
     }
 
     // Create variant piece
     const variant = await prisma.contentPiece.create({
       data: {
-        tenantId,
         brandId: sourcePiece.brandId,
         contentInputId: sourcePiece.contentInputId,
         parentId: sourcePiece.id,
@@ -178,13 +178,12 @@ Réponds uniquement avec le JSON.`,
 // ─── Manual Scheduling ───────────────────────────────────────
 
 export async function scheduleContent(
-  tenantId: string,
   pieceId: string,
   socialAccountId: string,
   scheduledAt: Date,
 ) {
   const piece = await prisma.contentPiece.findFirst({
-    where: { id: pieceId, tenantId },
+    where: { id: pieceId },
   });
   if (!piece) throw new AppError(404, 'NOT_FOUND', 'Content piece introuvable');
 
@@ -210,13 +209,11 @@ export async function scheduleContent(
 // ─── List & Update Schedules (Story 4.6) ─────────────────────
 
 export async function listSchedules(
-  tenantId: string,
   filters?: { from?: Date; to?: Date; brandId?: string; status?: string },
 ) {
   return prisma.contentSchedule.findMany({
     where: {
       contentPiece: {
-        tenantId,
         ...(filters?.brandId ? { brandId: filters.brandId } : {}),
       },
       ...(filters?.status ? { status: filters.status } : {}),
@@ -240,12 +237,11 @@ export async function listSchedules(
 }
 
 export async function updateSchedule(
-  tenantId: string,
   scheduleId: string,
   data: { scheduledAt?: Date },
 ) {
   const schedule = await prisma.contentSchedule.findFirst({
-    where: { id: scheduleId, contentPiece: { tenantId } },
+    where: { id: scheduleId },
   });
   if (!schedule) throw new AppError(404, 'NOT_FOUND', 'Planification introuvable');
   if (schedule.status === 'published') {
@@ -337,31 +333,90 @@ export async function publishScheduledContent() {
   return results;
 }
 
-// Platform API abstraction (dev-friendly mock)
+// Platform API abstraction — real publishing for LinkedIn & Twitter
 async function publishToSocialPlatform(
   platform: string,
   socialAccountId: string,
   piece: { title: string; body: string; hashtags: unknown; mediaUrl: string | null },
 ): Promise<string> {
-  // In production: decrypt tokens and call platform APIs
-  // (LinkedIn ugcPosts, Facebook /{pageId}/feed, etc.)
   const hashtags = Array.isArray(piece.hashtags) ? (piece.hashtags as string[]).join(' ') : '';
   const fullText = `${piece.body}\n\n${hashtags}`.trim();
 
-  console.log(`[DEV] Publishing to ${platform} via account ${socialAccountId}:`);
-  console.log(`  Title: ${piece.title}`);
-  console.log(`  Body: ${fullText.slice(0, 200)}...`);
-  if (piece.mediaUrl) console.log(`  Media: ${piece.mediaUrl}`);
+  // Get social account and decrypt tokens
+  const account = await prisma.socialAccount.findUnique({ where: { id: socialAccountId } });
+  if (!account || !account.accessTokenEncrypted) {
+    throw new Error(`Social account ${socialAccountId} not found or has no access token`);
+  }
 
-  // Return mock platform post ID
-  return `mock-${platform}-${Date.now()}`;
+  let accessToken: string;
+  try {
+    accessToken = decrypt(account.accessTokenEncrypted);
+  } catch {
+    throw new Error(`Failed to decrypt access token for account ${socialAccountId}`);
+  }
+
+  switch (platform) {
+    case 'linkedin': {
+      // Fetch image as buffer if mediaUrl is a local/generated file
+      let imageBuffer: Buffer | undefined;
+      if (piece.mediaUrl) {
+        try {
+          const imgRes = await fetch(piece.mediaUrl);
+          if (imgRes.ok) {
+            imageBuffer = Buffer.from(await imgRes.arrayBuffer());
+          }
+        } catch {
+          console.log('[LinkedIn] Could not fetch image for upload, posting without image');
+        }
+      }
+
+      const shareUrn = await publishLinkedInPost(
+        accessToken,
+        account.platformUserId ?? '',
+        fullText,
+        imageBuffer ? undefined : piece.mediaUrl ?? undefined,
+        imageBuffer,
+        account.profileType ?? 'person',
+      );
+      console.log(`[LinkedIn] Published: ${shareUrn}`);
+      return shareUrn;
+    }
+
+    case 'twitter': {
+      // Upload media if available
+      let mediaId: string | undefined;
+      if (piece.mediaUrl) {
+        try {
+          const { uploadTwitterMedia } = await import('../lib/twitter');
+          const imgRes = await fetch(piece.mediaUrl);
+          if (imgRes.ok) {
+            const buffer = Buffer.from(await imgRes.arrayBuffer());
+            const contentType = imgRes.headers.get('content-type') || 'image/png';
+            mediaId = await uploadTwitterMedia(accessToken, buffer, contentType);
+          }
+        } catch (err) {
+          console.log('[Twitter] Media upload failed, posting without image:', err);
+        }
+      }
+
+      const tweetId = await publishTweet(accessToken, fullText, mediaId);
+      console.log(`[Twitter] Published: ${tweetId}`);
+      return tweetId;
+    }
+
+    default: {
+      // Unsupported platforms — log and return mock
+      console.log(`[${platform}] Platform not yet supported, skipping publish`);
+      return `unsupported-${platform}-${Date.now()}`;
+    }
+  }
 }
 
 // ─── Manual Single Publish ───────────────────────────────────
 
-export async function publishSingle(tenantId: string, scheduleId: string) {
+export async function publishSingle(scheduleId: string) {
   const schedule = await prisma.contentSchedule.findFirst({
-    where: { id: scheduleId, contentPiece: { tenantId } },
+    where: { id: scheduleId },
     include: { contentPiece: true, socialAccount: true },
   });
   if (!schedule) throw new AppError(404, 'NOT_FOUND', 'Planification introuvable');

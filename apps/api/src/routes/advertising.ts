@@ -30,7 +30,7 @@ router.get(
   '/campaigns',
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
-    const campaigns = await advertisingService.listCampaigns(req.user!.tenantId, {
+    const campaigns = await advertisingService.listCampaigns({
       brandId: req.query.brandId as string | undefined,
       status: req.query.status as string | undefined,
       platform: req.query.platform as string | undefined,
@@ -44,7 +44,7 @@ router.get<{ id: string }>(
   '/campaigns/:id',
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
-    const campaign = await advertisingService.getCampaignById(req.user!.tenantId, req.params.id);
+    const campaign = await advertisingService.getCampaignById(req.params.id);
     res.json({ success: true, data: campaign });
   }),
 );
@@ -58,7 +58,6 @@ router.post(
   validate(proposalSchema),
   asyncHandler(async (req, res) => {
     const campaign = await advertisingService.generateCampaignProposal(
-      req.user!.tenantId,
       req.body,
     );
     res.status(201).json({ success: true, data: campaign });
@@ -74,7 +73,6 @@ router.post<{ id: string }>(
   validate(approvalSchema),
   asyncHandler(async (req, res) => {
     const approval = await advertisingService.submitCampaignForApproval(
-      req.user!.tenantId,
       req.params.id,
       req.body.assigneeId,
     );
@@ -89,7 +87,7 @@ router.post<{ id: string }>(
   '/campaigns/:id/launch',
   requirePermission('content:approve'),
   asyncHandler(async (req, res) => {
-    const campaign = await advertisingService.launchCampaign(req.user!.tenantId, req.params.id);
+    const campaign = await advertisingService.launchCampaign(req.params.id);
     res.json({ success: true, data: campaign });
   }),
 );
@@ -99,7 +97,7 @@ router.post<{ id: string }>(
   '/campaigns/:id/pause',
   requirePermission('content:approve'),
   asyncHandler(async (req, res) => {
-    const campaign = await advertisingService.pauseCampaign(req.user!.tenantId, req.params.id);
+    const campaign = await advertisingService.pauseCampaign(req.params.id);
     res.json({ success: true, data: campaign });
   }),
 );
@@ -119,7 +117,7 @@ router.post(
       });
       return;
     }
-    const ads = await advertisingService.runCompetitorResearch(req.user!.tenantId, brandId);
+    const ads = await advertisingService.runCompetitorResearch(brandId);
     res.json({ success: true, data: ads });
   }),
 );
@@ -129,7 +127,7 @@ router.get(
   '/competitors',
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
-    const ads = await advertisingService.listCompetitorAds(req.user!.tenantId, {
+    const ads = await advertisingService.listCompetitorAds({
       brandId: req.query.brandId as string | undefined,
       platform: req.query.platform as string | undefined,
     });
@@ -154,7 +152,7 @@ router.post(
   '/optimize',
   requirePermission('content:approve'),
   asyncHandler(async (req, res) => {
-    const results = await advertisingService.optimizeCampaigns(req.user!.tenantId);
+    const results = await advertisingService.optimizeCampaigns();
     res.json({ success: true, data: results });
   }),
 );

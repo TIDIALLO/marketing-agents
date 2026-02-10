@@ -5,7 +5,6 @@ import { encrypt } from '../lib/encryption';
 // ─── Social Accounts ─────────────────────────────────────────
 
 export async function connectSocialAccount(
-  tenantId: string,
   data: {
     brandId: string;
     platform: string;
@@ -16,9 +15,9 @@ export async function connectSocialAccount(
     tokenExpiresAt?: Date;
   },
 ) {
-  // Verify brand belongs to tenant
+  // Verify brand exists
   const brand = await prisma.brand.findFirst({
-    where: { id: data.brandId, tenantId },
+    where: { id: data.brandId },
   });
   if (!brand) {
     throw new AppError(404, 'NOT_FOUND', 'Marque introuvable');
@@ -58,8 +57,8 @@ export async function connectSocialAccount(
   });
 }
 
-export async function listSocialAccounts(tenantId: string, brandId: string) {
-  const brand = await prisma.brand.findFirst({ where: { id: brandId, tenantId } });
+export async function listSocialAccounts(brandId: string) {
+  const brand = await prisma.brand.findFirst({ where: { id: brandId } });
   if (!brand) {
     throw new AppError(404, 'NOT_FOUND', 'Marque introuvable');
   }
@@ -82,12 +81,11 @@ export async function listSocialAccounts(tenantId: string, brandId: string) {
   });
 }
 
-export async function disconnectSocialAccount(tenantId: string, id: string) {
+export async function disconnectSocialAccount(id: string) {
   const account = await prisma.socialAccount.findFirst({
     where: { id },
-    include: { brand: { select: { tenantId: true } } },
   });
-  if (!account || account.brand.tenantId !== tenantId) {
+  if (!account) {
     throw new AppError(404, 'NOT_FOUND', 'Compte social introuvable');
   }
   await prisma.socialAccount.delete({ where: { id } });
@@ -96,7 +94,6 @@ export async function disconnectSocialAccount(tenantId: string, id: string) {
 // ─── Ad Accounts ─────────────────────────────────────────────
 
 export async function connectAdAccount(
-  tenantId: string,
   socialAccountId: string,
   data: {
     platform: string;
@@ -107,9 +104,8 @@ export async function connectAdAccount(
 ) {
   const socialAccount = await prisma.socialAccount.findFirst({
     where: { id: socialAccountId },
-    include: { brand: { select: { tenantId: true } } },
   });
-  if (!socialAccount || socialAccount.brand.tenantId !== tenantId) {
+  if (!socialAccount) {
     throw new AppError(404, 'NOT_FOUND', 'Compte social introuvable');
   }
 
@@ -134,12 +130,11 @@ export async function connectAdAccount(
   });
 }
 
-export async function listAdAccounts(tenantId: string, socialAccountId: string) {
+export async function listAdAccounts(socialAccountId: string) {
   const socialAccount = await prisma.socialAccount.findFirst({
     where: { id: socialAccountId },
-    include: { brand: { select: { tenantId: true } } },
   });
-  if (!socialAccount || socialAccount.brand.tenantId !== tenantId) {
+  if (!socialAccount) {
     throw new AppError(404, 'NOT_FOUND', 'Compte social introuvable');
   }
 
@@ -159,16 +154,11 @@ export async function listAdAccounts(tenantId: string, socialAccountId: string) 
   });
 }
 
-export async function disconnectAdAccount(tenantId: string, id: string) {
+export async function disconnectAdAccount(id: string) {
   const adAccount = await prisma.adAccount.findFirst({
     where: { id },
-    include: {
-      socialAccount: {
-        include: { brand: { select: { tenantId: true } } },
-      },
-    },
   });
-  if (!adAccount || adAccount.socialAccount.brand.tenantId !== tenantId) {
+  if (!adAccount) {
     throw new AppError(404, 'NOT_FOUND', 'Compte publicitaire introuvable');
   }
   await prisma.adAccount.delete({ where: { id } });

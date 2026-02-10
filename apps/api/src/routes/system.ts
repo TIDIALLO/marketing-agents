@@ -8,6 +8,7 @@ import * as agentBusService from '../services/agent-bus.service';
 import * as oauthRefreshService from '../services/oauth-refresh.service';
 import * as feedbackLoopService from '../services/feedback-loop.service';
 import * as monitoringService from '../services/monitoring.service';
+import * as signalCrossrefService from '../services/signal-crossref.service';
 
 const router = Router();
 
@@ -105,8 +106,8 @@ router.post(
 router.post(
   '/feedback/conversion-analysis',
   requirePermission('content:approve'),
-  asyncHandler(async (req, res) => {
-    const result = await feedbackLoopService.analyzeConversionPatterns(req.user!.tenantId);
+  asyncHandler(async (_req, res) => {
+    const result = await feedbackLoopService.analyzeConversionPatterns();
     res.json({ success: true, data: result });
   }),
 );
@@ -115,8 +116,8 @@ router.post(
 router.post(
   '/feedback/learning-loop',
   requirePermission('content:approve'),
-  asyncHandler(async (req, res) => {
-    const result = await feedbackLoopService.runLearningLoop(req.user!.tenantId);
+  asyncHandler(async (_req, res) => {
+    const result = await feedbackLoopService.runLearningLoop();
     res.json({ success: true, data: result });
   }),
 );
@@ -125,8 +126,28 @@ router.post(
 router.post(
   '/feedback/ad-creative-insights',
   requirePermission('content:approve'),
-  asyncHandler(async (req, res) => {
-    const result = await feedbackLoopService.extractAdCreativeInsights(req.user!.tenantId);
+  asyncHandler(async (_req, res) => {
+    const result = await feedbackLoopService.extractAdCreativeInsights();
+    res.json({ success: true, data: result });
+  }),
+);
+
+// POST /api/system/feedback/objection-briefs — objections → content briefs (2.4)
+router.post(
+  '/feedback/objection-briefs',
+  requirePermission('content:approve'),
+  asyncHandler(async (_req, res) => {
+    const result = await feedbackLoopService.analyzeObjectionsAndCreateBriefs();
+    res.json({ success: true, data: result });
+  }),
+);
+
+// POST /api/system/feedback/signal-crossref — organic ↔ paid cross-referencing (3.4)
+router.post(
+  '/feedback/signal-crossref',
+  requirePermission('content:approve'),
+  asyncHandler(async (_req, res) => {
+    const result = await signalCrossrefService.runSignalCrossReference();
     res.json({ success: true, data: result });
   }),
 );

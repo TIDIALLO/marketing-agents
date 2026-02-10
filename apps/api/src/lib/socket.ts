@@ -6,20 +6,16 @@ let io: SocketServer | null = null;
 export function initSocket(httpServer: HttpServer): SocketServer {
   io = new SocketServer(httpServer, {
     cors: {
-      origin: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000'],
+      origin: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3100'],
       credentials: true,
     },
   });
 
   io.on('connection', (socket) => {
-    const tenantId = socket.handshake.auth?.tenantId as string | undefined;
-    if (tenantId) {
-      socket.join(`tenant:${tenantId}`);
-      console.log(`[Socket] Client joined tenant:${tenantId}`);
-    }
+    console.log(`[Socket] Client connected: ${socket.id}`);
 
     socket.on('disconnect', () => {
-      if (tenantId) console.log(`[Socket] Client left tenant:${tenantId}`);
+      console.log(`[Socket] Client disconnected: ${socket.id}`);
     });
   });
 
@@ -30,12 +26,11 @@ export function getIO(): SocketServer | null {
   return io;
 }
 
-export function emitToTenant(
-  tenantId: string,
+export function emitEvent(
   event: string,
   data: Record<string, unknown>,
 ): void {
   if (io) {
-    io.to(`tenant:${tenantId}`).emit(event, data);
+    io.emit(event, data);
   }
 }

@@ -7,29 +7,10 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// ─── Tenant & Auth ───────────────────────────────────────────
-
-model Tenant {
-  id             String   @id @default(cuid())
-  name           String?
-  plan           String   @default("free")
-  logo           String?
-  primaryColor   String?  @map("primary_color")
-  secondaryColor String?  @map("secondary_color")
-  customDomain   String?  @unique @map("custom_domain")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-
-  users         PlatformUser[]
-  organizations Organization[]
-  brands        Brand[]
-
-  @@map("tenants")
-}
+// ─── Auth ───────────────────────────────────────────────────
 
 model PlatformUser {
   id                      String   @id @default(cuid())
-  tenantId                String   @map("tenant_id")
   email                   String   @unique
   passwordHash            String   @map("password_hash")
   firstName               String   @map("first_name")
@@ -40,11 +21,9 @@ model PlatformUser {
   createdAt               DateTime @default(now()) @map("created_at")
   updatedAt               DateTime @updatedAt @map("updated_at")
 
-  tenant              Tenant               @relation(fields: [tenantId], references: [id])
   passwordResetTokens PasswordResetToken[]
-  organizationUsers   OrganizationUser[]
+  brands              Brand[]
 
-  @@index([tenantId])
   @@map("platform_users")
 }
 
@@ -62,63 +41,11 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
-// ─── Organization ────────────────────────────────────────────
-
-model Organization {
-  id          String   @id @default(cuid())
-  tenantId    String   @map("tenant_id")
-  name        String
-  description String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  tenant      Tenant             @relation(fields: [tenantId], references: [id])
-  users       OrganizationUser[]
-  invitations UserInvitation[]
-  brands      Brand[]
-
-  @@index([tenantId])
-  @@map("organizations")
-}
-
-model OrganizationUser {
-  id             String   @id @default(cuid())
-  organizationId String   @map("organization_id")
-  userId         String   @map("user_id")
-  role           String   @default("editor")
-  joinedAt       DateTime @default(now()) @map("joined_at")
-
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user         PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([organizationId, userId])
-  @@index([userId])
-  @@map("organization_users")
-}
-
-model UserInvitation {
-  id             String    @id @default(cuid())
-  organizationId String    @map("organization_id")
-  email          String
-  role           String    @default("editor")
-  tokenHash      String    @unique @map("token_hash")
-  expiresAt      DateTime  @map("expires_at")
-  usedAt         DateTime? @map("used_at")
-  createdAt      DateTime  @default(now()) @map("created_at")
-
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@index([organizationId])
-  @@index([email])
-  @@map("user_invitations")
-}
-
 // ─── Brand & Product ─────────────────────────────────────────
 
 model Brand {
   id                String   @id @default(cuid())
-  tenantId          String   @map("tenant_id")
-  organizationId    String   @map("organization_id")
+  userId            String   @map("user_id")
   name              String
   brandVoice        Json?    @map("brand_voice")
   targetAudience    Json?    @map("target_audience")
@@ -127,30 +54,116 @@ model Brand {
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
-  tenant         Tenant         @relation(fields: [tenantId], references: [id])
-  organization   Organization   @relation(fields: [organizationId], references: [id])
+  user           PlatformUser    @relation(fields: [userId], references: [id])
   products       Product[]
   socialAccounts SocialAccount[]
   contentInputs  ContentInput[]
   contentPieces  ContentPiece[]
+  landingPages   LandingPage[]
+  emailTemplates EmailTemplate[]
+  emailCampaigns EmailCampaign[]
 
-  @@index([tenantId])
-  @@index([organizationId])
+  @@index([userId])
   @@map("brands")
 }
 
 model Product {
-  id          String   @id @default(cuid())
-  brandId     String   @map("brand_id")
-  name        String
-  description String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(cuid())
+  brandId         String   @map("brand_id")
+  name            String
+  slug            String?  @unique
+  description     String?
+  tagline         String?
+  longDescription String?  @map("long_description")
+  pricing         Json?
+  features        Json?
+  testimonials    Json?
+  ctaText         String?  @map("cta_text")
+  ctaUrl          String?  @map("cta_url")
+  isActive        Boolean  @default(true) @map("is_active")
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
-  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  brand        Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  landingPages LandingPage[]
 
   @@index([brandId])
   @@map("products")
+}
+
+// ─── Landing Pages ──────────────────────────────────────────
+
+model LandingPage {
+  id            String   @id @default(cuid())
+  brandId       String   @map("brand_id")
+  productId     String?  @map("product_id")
+  slug          String   @unique
+  title         String
+  heroTitle     String?  @map("hero_title")
+  heroSubtitle  String?  @map("hero_subtitle")
+  heroCtaText   String?  @map("hero_cta_text")
+  heroCtaUrl    String?  @map("hero_cta_url")
+  sections      Json?
+  seoTitle      String?  @map("seo_title")
+  seoDescription String? @map("seo_description")
+  isPublished   Boolean  @default(false) @map("is_published")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  brand   Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([brandId])
+  @@index([productId])
+  @@map("landing_pages")
+}
+
+// ─── Email Marketing ────────────────────────────────────────
+
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  brandId   String   @map("brand_id")
+  name      String
+  subject   String
+  htmlBody  String   @map("html_body")
+  textBody  String?  @map("text_body")
+  variables Json?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  brand     Brand           @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  campaigns EmailCampaign[]
+
+  @@index([brandId])
+  @@map("email_templates")
+}
+
+model EmailCampaign {
+  id              String    @id @default(cuid())
+  brandId         String    @map("brand_id")
+  templateId      String?   @map("template_id")
+  name            String
+  subject         String
+  status          String    @default("draft")
+  scheduledAt     DateTime? @map("scheduled_at")
+  sentAt          DateTime? @map("sent_at")
+  recipientFilter Json?     @map("recipient_filter")
+  recipientCount  Int       @default(0) @map("recipient_count")
+  sentCount       Int       @default(0) @map("sent_count")
+  openCount       Int       @default(0) @map("open_count")
+  clickCount      Int       @default(0) @map("click_count")
+  bounceCount     Int       @default(0) @map("bounce_count")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  brand    Brand          @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  template EmailTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@index([brandId])
+  @@index([templateId])
+  @@index([status])
+  @@map("email_campaigns")
 }
 
 // ─── Social & Ad Accounts ────────────────────────────────────
@@ -161,6 +174,7 @@ model SocialAccount {
   platform              String
   platformUserId        String?   @map("platform_user_id")
   platformUsername      String?   @map("platform_username")
+  profileType           String?   @map("profile_type")
   accessTokenEncrypted  String    @map("access_token_encrypted")
   refreshTokenEncrypted String?   @map("refresh_token_encrypted")
   tokenExpiresAt        DateTime? @map("token_expires_at")
@@ -198,7 +212,6 @@ model AdAccount {
 
 model ContentPillar {
   id          String   @id @default(cuid())
-  tenantId    String   @map("tenant_id")
   brandId     String   @map("brand_id")
   name        String
   description String?
@@ -207,14 +220,12 @@ model ContentPillar {
 
   contentInputs ContentInput[]
 
-  @@index([tenantId])
   @@index([brandId])
   @@map("content_pillars")
 }
 
 model ContentInput {
   id                String    @id @default(cuid())
-  tenantId          String    @map("tenant_id")
   brandId           String    @map("brand_id")
   pillarId          String?   @map("pillar_id")
   createdById       String    @map("created_by_id")
@@ -235,7 +246,6 @@ model ContentInput {
   pillar        ContentPillar? @relation(fields: [pillarId], references: [id])
   contentPieces ContentPiece[]
 
-  @@index([tenantId])
   @@index([brandId])
   @@index([status])
   @@map("content_inputs")
@@ -243,7 +253,6 @@ model ContentInput {
 
 model ContentPiece {
   id              String    @id @default(cuid())
-  tenantId        String    @map("tenant_id")
   brandId         String    @map("brand_id")
   contentInputId  String?   @map("content_input_id")
   parentId        String?   @map("parent_id")
@@ -254,6 +263,11 @@ model ContentPiece {
   callToAction    String?   @map("call_to_action")
   mediaUrl        String?   @map("media_url")
   mediaPrompt     String?   @map("media_prompt")
+  framework       String?
+  templateId      String?   @map("template_id")
+  templateData    Json?     @map("template_data")
+  parentPieceId   String?   @map("parent_piece_id")
+  repurposeType   String?   @map("repurpose_type")
   status          String    @default("draft")
   platformPostId  String?   @map("platform_post_id")
   engagementScore Float     @default(0) @map("engagement_score")
@@ -265,13 +279,15 @@ model ContentPiece {
   contentInput ContentInput? @relation(fields: [contentInputId], references: [id])
   parent       ContentPiece? @relation("ContentPieceVariants", fields: [parentId], references: [id])
   variants     ContentPiece[] @relation("ContentPieceVariants")
+  parentPiece  ContentPiece?  @relation("ContentPieceRepurpose", fields: [parentPieceId], references: [id])
+  repurposed   ContentPiece[] @relation("ContentPieceRepurpose")
   schedules    ContentSchedule[]
   metrics      ContentMetrics[]
   signals      ContentSignal[]
 
-  @@index([tenantId])
   @@index([brandId])
   @@index([contentInputId])
+  @@index([parentPieceId])
   @@index([status])
   @@map("content_pieces")
 }
@@ -280,7 +296,6 @@ model ContentPiece {
 
 model ApprovalQueue {
   id            String    @id @default(cuid())
-  tenantId      String    @map("tenant_id")
   entityType    String    @map("entity_type")
   entityId      String    @map("entity_id")
   assigneeId    String?   @map("assignee_id")
@@ -295,7 +310,6 @@ model ApprovalQueue {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  @@index([tenantId])
   @@index([entityType, entityId])
   @@index([status])
   @@index([assigneeId])
@@ -339,6 +353,7 @@ model ContentMetrics {
   clicks          Int      @default(0)
   videoViews      Int      @default(0) @map("video_views")
   engagementRate  Float    @default(0) @map("engagement_rate")
+  collectionAge   Int?     @map("collection_age")
   collectedAt     DateTime @default(now()) @map("collected_at")
 
   contentPiece ContentPiece @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
@@ -349,26 +364,27 @@ model ContentMetrics {
 }
 
 model ContentSignal {
-  id                String   @id @default(cuid())
-  contentPieceId    String   @map("content_piece_id")
-  signalType        String   @map("signal_type")
-  signalStrength    Float    @map("signal_strength")
-  aiRecommendation  String   @map("ai_recommendation")
-  createdAt         DateTime @default(now()) @map("created_at")
+  id                String       @id @default(cuid())
+  contentPieceId    String       @map("content_piece_id")
+  signalType        String       @map("signal_type")
+  signalStrength    Float        @map("signal_strength")
+  aiRecommendation  String       @map("ai_recommendation")
+  createdAt         DateTime     @default(now()) @map("created_at")
 
-  contentPiece ContentPiece @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
+  contentPiece ContentPiece  @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
+  adCampaigns  AdCampaign[]
 
+  @@unique([contentPieceId, signalType], name: "contentPieceId_signalType")
   @@index([contentPieceId])
   @@index([signalType])
   @@map("content_signals")
 }
 
-// ─── Daily Analytics Aggregation (Story 9.2) ────────────────────
+// ─── Daily Analytics Aggregation ────────────────────────────────
 
 model DailyAnalytics {
   id                String   @id @default(cuid())
-  tenantId          String   @map("tenant_id")
-  organizationId    String   @map("organization_id")
+  brandId           String   @map("brand_id")
   date              DateTime @db.Date
   contentsPublished Int      @default(0) @map("contents_published")
   impressions       Int      @default(0)
@@ -380,8 +396,7 @@ model DailyAnalytics {
   conversions       Int      @default(0)
   createdAt         DateTime @default(now()) @map("created_at")
 
-  @@unique([organizationId, date])
-  @@index([tenantId])
+  @@unique([brandId, date])
   @@index([date])
   @@map("daily_analytics")
 }
@@ -390,7 +405,6 @@ model DailyAnalytics {
 
 model Lead {
   id              String    @id @default(cuid())
-  tenantId        String    @map("tenant_id")
   brandId         String    @map("brand_id")
   firstName       String    @map("first_name")
   lastName        String    @map("last_name")
@@ -416,8 +430,7 @@ model Lead {
   interactions LeadInteraction[]
   enrollments  LeadSequenceEnrollment[]
 
-  @@unique([tenantId, email])
-  @@index([tenantId])
+  @@unique([brandId, email])
   @@index([brandId])
   @@index([temperature])
   @@index([status])
@@ -426,17 +439,19 @@ model Lead {
 }
 
 model CalendarBooking {
-  id             String    @id @default(cuid())
-  leadId         String    @map("lead_id")
-  userId         String?   @map("user_id")
-  scheduledAt    DateTime? @map("scheduled_at")
-  status         String    @default("pending")
-  aiBriefing     String?   @map("ai_briefing")
-  calcomEventId  String?   @map("calcom_event_id")
-  proposedSlots  Json?     @map("proposed_slots")
-  proposalMessage String?  @map("proposal_message")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  id              String    @id @default(cuid())
+  leadId          String    @map("lead_id")
+  userId          String?   @map("user_id")
+  scheduledAt     DateTime? @map("scheduled_at")
+  status          String    @default("pending")
+  aiBriefing      String?   @map("ai_briefing")
+  calcomEventId   String?   @map("calcom_event_id")
+  proposedSlots   Json?     @map("proposed_slots")
+  proposalMessage String?   @map("proposal_message")
+  confirmedAt     DateTime? @map("confirmed_at")
+  confirmedSlot   Json?     @map("confirmed_slot")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
@@ -449,7 +464,6 @@ model CalendarBooking {
 
 model LeadSequence {
   id          String   @id @default(cuid())
-  tenantId    String   @map("tenant_id")
   name        String
   steps       Json     @default("[]")
   createdAt   DateTime @default(now()) @map("created_at")
@@ -457,7 +471,6 @@ model LeadSequence {
 
   enrollments LeadSequenceEnrollment[]
 
-  @@index([tenantId])
   @@map("lead_sequences")
 }
 
@@ -503,7 +516,6 @@ model LeadInteraction {
 
 model CompetitorAd {
   id              String   @id @default(cuid())
-  tenantId        String   @map("tenant_id")
   brandId         String   @map("brand_id")
   platform        String
   competitorName  String   @map("competitor_name")
@@ -512,7 +524,6 @@ model CompetitorAd {
   aiAnalysis      String?  @map("ai_analysis")
   collectedAt     DateTime @default(now()) @map("collected_at")
 
-  @@index([tenantId])
   @@index([brandId])
   @@index([collectedAt])
   @@map("competitor_ads")
@@ -520,7 +531,6 @@ model CompetitorAd {
 
 model AdCampaign {
   id                  String    @id @default(cuid())
-  tenantId            String    @map("tenant_id")
   brandId             String    @map("brand_id")
   adAccountId         String    @map("ad_account_id")
   contentSignalId     String?   @map("content_signal_id")
@@ -539,13 +549,14 @@ model AdCampaign {
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
-  adSets    AdSet[]
-  creatives AdCreative[]
-  metrics   AdMetrics[]
+  contentSignal ContentSignal? @relation(fields: [contentSignalId], references: [id])
+  adSets        AdSet[]
+  creatives     AdCreative[]
+  metrics       AdMetrics[]
 
-  @@index([tenantId])
   @@index([brandId])
   @@index([status])
+  @@index([contentSignalId])
   @@map("ad_campaigns")
 }
 
@@ -609,7 +620,6 @@ model AdMetrics {
 
 model AiLearningLog {
   id          String   @id @default(cuid())
-  tenantId    String   @map("tenant_id")
   agentType   String   @map("agent_type")
   actionType  String   @map("action_type")
   entityType  String   @map("entity_type")
@@ -620,13 +630,12 @@ model AiLearningLog {
   embedding   Json?
   createdAt   DateTime @default(now()) @map("created_at")
 
-  @@index([tenantId])
   @@index([agentType])
   @@index([entityType, entityId])
   @@map("ai_learning_logs")
 }
 
-// ─── Agent Messages Bus & Dead Letter Queue (Story 10.2) ────────
+// ─── Agent Messages Bus & Dead Letter Queue ────────────────────
 
 model AgentMessage {
   id            String    @id @default(cuid())
@@ -646,7 +655,7 @@ model AgentMessage {
   @@map("agent_messages")
 }
 
-// ─── Workflow Error Logs (Story 10.8) ────────────────────────────
+// ─── Workflow Error Logs ────────────────────────────────────────
 
 model WorkflowError {
   id          String   @id @default(cuid())

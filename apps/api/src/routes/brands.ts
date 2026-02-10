@@ -6,7 +6,6 @@ import { requirePermission } from '../middleware/requireRole';
 import * as brandService from '../services/brand.service';
 
 const createBrandSchema = z.object({
-  organizationId: z.string().min(1, 'Organisation requise'),
   name: z.string().trim().min(1, 'Nom requis'),
   brandVoice: z.string().optional(),
   targetAudience: z.string().optional(),
@@ -42,7 +41,7 @@ router.post(
   requirePermission('brands:create'),
   validate(createBrandSchema),
   asyncHandler(async (req, res) => {
-    const brand = await brandService.createBrand(req.user!.tenantId, req.body);
+    const brand = await brandService.createBrand(req.user!.userId, req.body);
     res.status(201).json({ success: true, data: brand });
   }),
 );
@@ -52,7 +51,7 @@ router.get(
   '/',
   requirePermission('brands:view'),
   asyncHandler(async (req, res) => {
-    const brands = await brandService.listBrands(req.user!.tenantId);
+    const brands = await brandService.listBrands();
     res.json({ success: true, data: brands });
   }),
 );
@@ -62,7 +61,7 @@ router.get<{ id: string }>(
   '/:id',
   requirePermission('brands:view'),
   asyncHandler(async (req, res) => {
-    const brand = await brandService.getBrandById(req.user!.tenantId, req.params.id);
+    const brand = await brandService.getBrandById(req.params.id);
     res.json({ success: true, data: brand });
   }),
 );
@@ -73,7 +72,7 @@ router.put<{ id: string }>(
   requirePermission('brands:edit'),
   validate(updateBrandSchema),
   asyncHandler(async (req, res) => {
-    const brand = await brandService.updateBrand(req.user!.tenantId, req.params.id, req.body);
+    const brand = await brandService.updateBrand(req.params.id, req.body);
     res.json({ success: true, data: brand });
   }),
 );
@@ -83,8 +82,51 @@ router.delete<{ id: string }>(
   '/:id',
   requirePermission('brands:create'),
   asyncHandler(async (req, res) => {
-    await brandService.deleteBrand(req.user!.tenantId, req.params.id);
+    await brandService.deleteBrand(req.params.id);
     res.json({ success: true, data: { message: 'Marque supprimée' } });
+  }),
+);
+
+// ─── Brand Voice ─────────────────────────────────────────────
+
+const brandVoiceSchema = z.object({
+  tone: z.array(z.string()).min(1, 'Au moins un ton requis'),
+  vocabulary: z.object({
+    preferred: z.array(z.string()),
+    avoided: z.array(z.string()),
+  }),
+  persona: z.object({
+    name: z.string().min(1),
+    role: z.string().min(1),
+    background: z.string(),
+  }),
+  frameworks: z.array(z.string()).default([]),
+  languageStyle: z.object({
+    formality: z.enum(['casual', 'professional', 'formal']),
+    humor: z.enum(['none', 'light', 'frequent']).default('none'),
+    emojiUsage: z.enum(['none', 'minimal', 'moderate', 'heavy']).default('minimal'),
+    sentenceLength: z.enum(['short', 'mixed', 'long']).default('mixed'),
+  }),
+  examples: z.object({
+    good: z.array(z.string()),
+    bad: z.array(z.string()),
+  }),
+  platformOverrides: z.record(z.object({
+    tone: z.array(z.string()).optional(),
+    formality: z.enum(['casual', 'professional', 'formal']).optional(),
+    emojiUsage: z.enum(['none', 'minimal', 'moderate', 'heavy']).optional(),
+    maxLength: z.number().optional(),
+  })).optional(),
+});
+
+// PUT /api/brands/:id/voice — update structured brand voice
+router.put<{ id: string }>(
+  '/:id/voice',
+  requirePermission('brands:edit'),
+  validate(brandVoiceSchema),
+  asyncHandler(async (req, res) => {
+    const brand = await brandService.updateBrandVoice(req.params.id, req.body);
+    res.json({ success: true, data: brand });
   }),
 );
 
@@ -96,7 +138,7 @@ router.post<{ brandId: string }>(
   requirePermission('brands:edit'),
   validate(createProductSchema),
   asyncHandler(async (req, res) => {
-    const product = await brandService.createProduct(req.user!.tenantId, {
+    const product = await brandService.createProduct({
       brandId: req.params.brandId,
       ...req.body,
     });
@@ -109,7 +151,7 @@ router.get<{ brandId: string }>(
   '/:brandId/products',
   requirePermission('brands:view'),
   asyncHandler(async (req, res) => {
-    const products = await brandService.listProducts(req.user!.tenantId, req.params.brandId);
+    const products = await brandService.listProducts(req.params.brandId);
     res.json({ success: true, data: products });
   }),
 );
@@ -121,7 +163,6 @@ router.put<{ brandId: string; productId: string }>(
   validate(updateProductSchema),
   asyncHandler(async (req, res) => {
     const product = await brandService.updateProduct(
-      req.user!.tenantId,
       req.params.productId,
       req.body,
     );
@@ -134,7 +175,7 @@ router.delete<{ brandId: string; productId: string }>(
   '/:brandId/products/:productId',
   requirePermission('brands:create'),
   asyncHandler(async (req, res) => {
-    await brandService.deleteProduct(req.user!.tenantId, req.params.productId);
+    await brandService.deleteProduct(req.params.productId);
     res.json({ success: true, data: { message: 'Produit supprimé' } });
   }),
 );
