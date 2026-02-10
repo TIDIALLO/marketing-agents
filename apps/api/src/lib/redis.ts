@@ -6,9 +6,11 @@ let redis: Redis | null = null;
 
 export function getRedis(): Redis {
   if (!redis) {
-    redis = new Redis(REDIS_URL, { maxRetriesPerRequest: 3, lazyConnect: true });
+    redis = new Redis(REDIS_URL, { maxRetriesPerRequest: 3, lazyConnect: true, retryStrategy: (times) => Math.min(times * 500, 5000) });
     redis.on('error', (err) => {
-      console.error('[Redis] Connection error:', err.message);
+      if (!redis?.status || redis.status === 'connecting') {
+        console.error('[Redis] Connection error:', err.message);
+      }
     });
   }
   return redis;

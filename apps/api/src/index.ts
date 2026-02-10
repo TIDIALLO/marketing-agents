@@ -4,7 +4,7 @@ import { initSocket } from './lib/socket';
 import { startScheduler } from './lib/scheduler';
 import { startOrchestrator } from './services/agent-orchestrator.service';
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 4100;
 
 const httpServer = createServer(app);
 initSocket(httpServer);
