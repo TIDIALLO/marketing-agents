@@ -34,6 +34,9 @@
     "analytics": "Analytics",
     "approvals": "Approvals",
     "brands": "Brands",
+    "products": "Products",
+    "landingPages": "Landing Pages",
+    "email": "Emails",
     "settings": "Settings",
     "agentsActive": "{count} active agents"
   },

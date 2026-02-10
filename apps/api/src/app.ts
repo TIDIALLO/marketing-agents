@@ -27,6 +27,9 @@ import { n8nInternalRoutes } from './routes/n8n-internal';
 
 const app = express();
 
+// Trust first proxy (Nginx) so rate limiter uses real client IP from X-Forwarded-For
+app.set('trust proxy', 1);
+
 const allowedOrigins = process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3100'];
 const isDev = process.env.NODE_ENV !== 'production';
 

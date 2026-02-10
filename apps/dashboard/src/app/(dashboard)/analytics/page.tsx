@@ -13,26 +13,31 @@ import { AreaChartComponent } from '@/components/charts/area-chart';
 import { PieChartComponent } from '@/components/charts/pie-chart';
 import type { ContentSignal } from '@synap6ia/shared';
 
-interface DashboardKPI {
-  contentsPublished: number;
-  totalImpressions: number;
-  totalEngagements: number;
-  leadsGenerated: number;
-  adSpend: number;
-  conversions: number;
-  sparklines: {
-    impressions: number[];
-    engagements: number[];
-    leads: number[];
-    spend: number[];
+interface DashboardData {
+  contentByStatus: { status: string; count: number }[];
+  metrics: {
+    totalImpressions: number;
+    totalReach: number;
+    totalEngagements: number;
+    totalLikes: number;
+    totalComments: number;
+    totalShares: number;
+    totalClicks: number;
+    totalVideoViews: number;
+    avgEngagementRate: number;
   };
+  signalsDetected: number;
+  pendingApprovals: number;
 }
 
 interface TrendData {
   date: string;
   impressions: number;
   engagements: number;
-  clicks: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  avgEngagementRate: number;
   [key: string]: unknown;
 }
 
@@ -40,14 +45,14 @@ interface TopPost {
   id: string;
   title: string;
   platform: string;
-  engagementRate: number;
-  impressions: number;
+  engagementScore: number;
+  metrics: { impressions: number; engagementRate: number }[];
 }
 
 export default function AnalyticsPage() {
   const t = useTranslations('analytics');
 
-  const { data: kpi, isLoading: kpiLoading } = useApi<DashboardKPI>('/api/analytics/dashboard');
+  const { data: dashboard, isLoading: dashLoading } = useApi<DashboardData>('/api/analytics/dashboard');
   const { data: trends, isLoading: trendsLoading } = useApi<TrendData[]>('/api/analytics/trends');
   const { data: topPosts } = useApi<TopPost[]>('/api/analytics/top-posts');
   const { data: signals } = useApi<ContentSignal[]>('/api/analytics/signals');
@@ -59,30 +64,34 @@ export default function AnalyticsPage() {
     { name: 'TikTok', value: 15, color: '#000000' },
   ];
 
-  const kpiCards = kpi
+  const sparkImpressions = (trends ?? []).map((d) => d.impressions);
+  const sparkEngagements = (trends ?? []).map((d) => d.engagements);
+  const sparkClicks = (trends ?? []).map((d) => d.likes + d.comments + d.shares);
+
+  const kpiCards = dashboard
     ? [
         {
           label: t('impressions'),
-          value: kpi.totalImpressions.toLocaleString(),
-          sparkData: kpi.sparklines.impressions,
+          value: dashboard.metrics.totalImpressions.toLocaleString(),
+          sparkData: sparkImpressions,
           color: '#6366f1',
         },
         {
           label: t('engagements'),
-          value: kpi.totalEngagements.toLocaleString(),
-          sparkData: kpi.sparklines.engagements,
+          value: dashboard.metrics.totalEngagements.toLocaleString(),
+          sparkData: sparkEngagements,
           color: '#10b981',
         },
         {
-          label: 'Leads',
-          value: kpi.leadsGenerated.toLocaleString(),
-          sparkData: kpi.sparklines.leads,
+          label: t('clicks'),
+          value: dashboard.metrics.totalClicks.toLocaleString(),
+          sparkData: sparkClicks,
           color: '#f59e0b',
         },
         {
-          label: 'Ad Spend',
-          value: `${kpi.adSpend.toLocaleString()} FCFA`,
-          sparkData: kpi.sparklines.spend,
+          label: t('shares'),
+          value: dashboard.metrics.totalShares.toLocaleString(),
+          sparkData: (trends ?? []).map((d) => d.shares),
           color: '#ef4444',
         },
       ]
@@ -101,7 +110,7 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {kpiLoading
+        {dashLoading
           ? Array.from({ length: 4 }).map((_, i) => (
               <Card key={i}>
                 <CardContent className="p-6">
@@ -173,12 +182,14 @@ export default function AnalyticsPage() {
                     <p className="text-xs text-muted-foreground capitalize">{post.platform}</p>
                   </div>
                   <span className="text-sm font-medium tabular-nums">
-                    {(post.engagementRate * 100).toFixed(1)}%
+                    {post.metrics[0]
+                      ? (post.metrics[0].engagementRate * 100).toFixed(1)
+                      : post.engagementScore.toFixed(1)}%
                   </span>
                 </Link>
               ))}
               {(topPosts ?? []).length === 0 && (
-                <p className="text-sm text-muted-foreground">Aucune donnée disponible.</p>
+                <p className="text-sm text-muted-foreground">{t('noData')}</p>
               )}
             </div>
           </CardContent>
@@ -212,7 +223,7 @@ export default function AnalyticsPage() {
                 </div>
               ))}
               {(signals ?? []).length === 0 && (
-                <p className="text-sm text-muted-foreground">Aucun signal détecté.</p>
+                <p className="text-sm text-muted-foreground">{t('noSignals')}</p>
               )}
             </div>
           </CardContent>
