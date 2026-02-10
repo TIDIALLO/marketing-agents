@@ -9,6 +9,10 @@ import * as oauthRefreshService from '../services/oauth-refresh.service';
 import * as feedbackLoopService from '../services/feedback-loop.service';
 import * as monitoringService from '../services/monitoring.service';
 import * as signalCrossrefService from '../services/signal-crossref.service';
+import * as agentOrchestratorService from '../services/agent-orchestrator.service';
+import * as trendDetectionService from '../services/trend-detection.service';
+import * as abTestingService from '../services/ab-testing.service';
+import * as compoundLearningService from '../services/compound-learning.service';
 
 const router = Router();
 
@@ -148,6 +152,171 @@ router.post(
   requirePermission('content:approve'),
   asyncHandler(async (_req, res) => {
     const result = await signalCrossrefService.runSignalCrossReference();
+    res.json({ success: true, data: result });
+  }),
+);
+
+// ─── A/B Testing (4.4) ──────────────────────────────────────────
+
+const abTestSchema = z.object({
+  name: z.string().min(1),
+  entityType: z.enum(['content_piece', 'email_subject', 'cta', 'ad_creative']),
+  controlId: z.string().min(1),
+  metric: z.string().optional(),
+});
+
+// POST /api/system/ab-tests — create A/B test
+router.post(
+  '/ab-tests',
+  requirePermission('content:approve'),
+  validate(abTestSchema),
+  asyncHandler(async (req, res) => {
+    const result = await abTestingService.createTest(req.body);
+    res.status(201).json({ success: true, data: result });
+  }),
+);
+
+// GET /api/system/ab-tests — list tests
+router.get(
+  '/ab-tests',
+  requirePermission('content:view'),
+  asyncHandler(async (req, res) => {
+    const tests = await abTestingService.listTests({
+      status: req.query.status as string | undefined,
+      entityType: req.query.entityType as string | undefined,
+    });
+    res.json({ success: true, data: tests });
+  }),
+);
+
+// POST /api/system/ab-tests/:id/evaluate — determine winner
+router.post<{ id: string }>(
+  '/ab-tests/:id/evaluate',
+  requirePermission('content:approve'),
+  asyncHandler(async (req, res) => {
+    const result = await abTestingService.determineWinner(req.params.id);
+    res.json({ success: true, data: result });
+  }),
+);
+
+// POST /api/system/ab-tests/evaluate-all — evaluate all running tests
+router.post(
+  '/ab-tests/evaluate-all',
+  requirePermission('content:approve'),
+  asyncHandler(async (_req, res) => {
+    const result = await abTestingService.evaluateAllRunningTests();
+    res.json({ success: true, data: result });
+  }),
+);
+
+// ─── Compound Learning (4.5) ────────────────────────────────────
+
+// GET /api/system/learning/frameworks — framework performance
+router.get(
+  '/learning/frameworks',
+  requirePermission('content:view'),
+  asyncHandler(async (req, res) => {
+    const days = req.query.days ? parseInt(req.query.days as string, 10) : 60;
+    const result = await compoundLearningService.analyzeFrameworkPerformance(days);
+    res.json({ success: true, data: result });
+  }),
+);
+
+// GET /api/system/learning/timing — best posting times
+router.get(
+  '/learning/timing',
+  requirePermission('content:view'),
+  asyncHandler(async (req, res) => {
+    const days = req.query.days ? parseInt(req.query.days as string, 10) : 60;
+    const result = await compoundLearningService.analyzePostingTimes(days);
+    res.json({ success: true, data: result });
+  }),
+);
+
+// POST /api/system/learning/update-voice — auto-update brand voice
+router.post(
+  '/learning/update-voice',
+  requirePermission('content:approve'),
+  asyncHandler(async (req, res) => {
+    const brandId = req.query.brandId as string | undefined;
+    if (!brandId) {
+      // Use first brand
+      const brand = await (await import('../lib/prisma')).prisma.brand.findFirst();
+      if (!brand) {
+        res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'No brand found' } });
+        return;
+      }
+      const result = await compoundLearningService.autoUpdateBrandVoice(brand.id);
+      res.json({ success: true, data: result });
+    } else {
+      const result = await compoundLearningService.autoUpdateBrandVoice(brandId);
+      res.json({ success: true, data: result });
+    }
+  }),
+);
+
+// GET /api/system/learning/prompts — prompt effectiveness tracking
+router.get(
+  '/learning/prompts',
+  requirePermission('content:view'),
+  asyncHandler(async (req, res) => {
+    const days = req.query.days ? parseInt(req.query.days as string, 10) : 30;
+    const result = await compoundLearningService.trackPromptEffectiveness(days);
+    res.json({ success: true, data: result });
+  }),
+);
+
+// POST /api/system/learning/cycle — run full compound learning cycle
+router.post(
+  '/learning/cycle',
+  requirePermission('content:approve'),
+  asyncHandler(async (_req, res) => {
+    const result = await compoundLearningService.runCompoundLearningCycle();
+    res.json({ success: true, data: result });
+  }),
+);
+
+// ─── Agent Orchestrator Stats (4.1) ─────────────────────────────
+
+// GET /api/system/agent-stats — agent orchestrator activity
+router.get(
+  '/agent-stats',
+  requirePermission('content:view'),
+  asyncHandler(async (_req, res) => {
+    const stats = await agentOrchestratorService.getAgentStats();
+    res.json({ success: true, data: stats });
+  }),
+);
+
+// ─── Trend Detection (4.3) ──────────────────────────────────────
+
+// GET /api/system/trends/hashtags — hashtag performance
+router.get(
+  '/trends/hashtags',
+  requirePermission('content:view'),
+  asyncHandler(async (req, res) => {
+    const days = req.query.days ? parseInt(req.query.days as string, 10) : 30;
+    const result = await trendDetectionService.analyzeHashtagPerformance(days);
+    res.json({ success: true, data: result });
+  }),
+);
+
+// POST /api/system/trends/detect — detect rising/declining topics
+router.post(
+  '/trends/detect',
+  requirePermission('content:approve'),
+  asyncHandler(async (_req, res) => {
+    const result = await trendDetectionService.detectRisingTopics();
+    res.json({ success: true, data: result });
+  }),
+);
+
+// GET /api/system/trends/fatigue — content fatigue detection
+router.get(
+  '/trends/fatigue',
+  requirePermission('content:view'),
+  asyncHandler(async (_req, res) => {
+    const result = await trendDetectionService.detectContentFatigue();
     res.json({ success: true, data: result });
   }),
 );

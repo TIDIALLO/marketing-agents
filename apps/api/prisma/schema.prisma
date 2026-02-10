@@ -618,6 +618,33 @@ model AdMetrics {
   @@map("ad_metrics")
 }
 
+// ─── A/B Testing (Phase 4.4) ──────────────────────────────────
+
+model ABTest {
+  id              String    @id @default(cuid())
+  name            String
+  entityType      String    @map("entity_type")
+  controlId       String    @map("control_id")
+  variantId       String    @map("variant_id")
+  metric          String    @default("engagement_score")
+  status          String    @default("running")
+  controlViews    Int       @default(0) @map("control_views")
+  controlSuccess  Int       @default(0) @map("control_success")
+  variantViews    Int       @default(0) @map("variant_views")
+  variantSuccess  Int       @default(0) @map("variant_success")
+  confidenceLevel Float?    @map("confidence_level")
+  winner          String?
+  conclusion      String?
+  startedAt       DateTime  @default(now()) @map("started_at")
+  endedAt         DateTime? @map("ended_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([entityType])
+  @@map("ab_tests")
+}
+
 model AiLearningLog {
   id          String   @id @default(cuid())
   agentType   String   @map("agent_type")

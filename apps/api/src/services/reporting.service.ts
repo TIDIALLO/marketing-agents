@@ -214,6 +214,59 @@ export async function generateWeeklyReport() {
     { contentsPublished: 0, impressions: 0, engagements: 0, adSpend: 0, leads: 0, conversions: 0 },
   );
 
+  // Framework performance ranking
+  const frameworkPerf = await prisma.contentPiece.groupBy({
+    by: ['framework'],
+    where: {
+      status: 'published',
+      publishedAt: { gte: weekStart },
+      framework: { not: null },
+    },
+    _avg: { engagementScore: true },
+    _count: true,
+  });
+
+  // Best posting times (hour analysis)
+  const publishedPieces = await prisma.contentPiece.findMany({
+    where: {
+      status: 'published',
+      publishedAt: { gte: weekStart },
+    },
+    select: { publishedAt: true, engagementScore: true, platform: true },
+  });
+
+  const hourPerf = new Map<number, { total: number; count: number }>();
+  for (const p of publishedPieces) {
+    if (!p.publishedAt) continue;
+    const hour = p.publishedAt.getUTCHours();
+    const existing = hourPerf.get(hour) ?? { total: 0, count: 0 };
+    existing.total += p.engagementScore;
+    existing.count += 1;
+    hourPerf.set(hour, existing);
+  }
+  const bestHours = [...hourPerf.entries()]
+    .map(([hour, data]) => ({ hour, avgScore: data.count > 0 ? data.total / data.count : 0, count: data.count }))
+    .sort((a, b) => b.avgScore - a.avgScore)
+    .slice(0, 3);
+
+  // Platform performance
+  const platformPerf = await prisma.contentPiece.groupBy({
+    by: ['platform'],
+    where: {
+      status: 'published',
+      publishedAt: { gte: weekStart },
+    },
+    _avg: { engagementScore: true },
+    _count: true,
+  });
+
+  // Agent activity summary
+  const agentActions = await prisma.aiLearningLog.groupBy({
+    by: ['agentType', 'actionType'],
+    where: { createdAt: { gte: weekStart } },
+    _count: true,
+  });
+
   const context = JSON.stringify({
     period: { from: weekStart.toISOString().slice(0, 10), to: now.toISOString().slice(0, 10) },
     weeklyTotals,
@@ -237,21 +290,66 @@ export async function generateWeeklyReport() {
       avgCTR: adSummary._avg.ctr ?? 0,
     },
     leadPipeline: { newLeads, qualifiedLeads, convertedLeads },
+    frameworkRanking: frameworkPerf.map((f) => ({
+      framework: f.framework,
+      avgScore: f._avg.engagementScore ?? 0,
+      postsCount: f._count,
+    })),
+    bestPostingHours: bestHours,
+    platformPerformance: platformPerf.map((p) => ({
+      platform: p.platform,
+      avgScore: p._avg.engagementScore ?? 0,
+      postsCount: p._count,
+    })),
+    agentActivity: agentActions.map((a) => ({
+      agent: a.agentType,
+      action: a.actionType,
+      count: a._count,
+    })),
   });
 
   const report = await claudeGenerate(
     `Tu es un analyste marketing senior. Génère un rapport hebdomadaire structuré en français.
 Le rapport doit contenir :
 1. Résumé exécutif (3 phrases max)
-2. Performance contenu (top 3, tendances)
-3. Performance publicitaire (ROAS, meilleur ad set)
-4. Pipeline leads (nouveaux, qualifiés, convertis)
-5. Insights IA (patterns détectés)
-6. Recommandations pour la semaine à venir
+2. Performance contenu (top 3, tendances, quel framework performe le mieux)
+3. Meilleurs horaires de publication (basé sur les données d'engagement par heure)
+4. Performance par plateforme (LinkedIn vs Twitter vs autres)
+5. Performance publicitaire (ROAS, meilleur ad set)
+6. Pipeline leads (nouveaux, qualifiés, convertis)
+7. Activité des agents IA (actions automatisées cette semaine)
+8. Insights IA (patterns détectés, corrélations)
+9. Plan d'action pour la semaine prochaine (5 recommandations concrètes et priorisées)
 
-Sois concis, actionnable et data-driven.`,
+Sois concis, actionnable et data-driven. Termine par les 3 actions les plus urgentes.`,
     `Voici les données de la semaine :\n${context}`,
   );
+
+  // Extract action items and create ContentInput briefs for next week
+  const brand = await prisma.brand.findFirst();
+  const user = await prisma.platformUser.findFirst();
+  if (brand && user) {
+    const briefGeneration = await claudeGenerate(
+      `Extrais du rapport hebdomadaire ci-dessous les 3 briefs de contenu les plus urgents pour la semaine prochaine.
+Réponds en JSON : [{ "topic": "...", "angle": "...", "platform": "...", "framework": "..." }]`,
+      report,
+    );
+    try {
+      const jsonMatch = briefGeneration.match(/\[[\s\S]*\]/);
+      const briefs = jsonMatch ? JSON.parse(jsonMatch[0]) as { topic: string; angle: string; platform: string; framework: string }[] : [];
+      for (const brief of briefs.slice(0, 3)) {
+        await prisma.contentInput.create({
+          data: {
+            brandId: brand.id,
+            createdById: user.id,
+            inputType: 'auto_weekly_plan',
+            rawContent: `[Weekly Plan] ${brief.topic}\nAngle: ${brief.angle}\nPlateforme: ${brief.platform}\nFramework: ${brief.framework}`,
+            status: 'pending',
+          },
+        });
+      }
+    } catch { /* ignore parse errors */ }
+  }
 
   // Send report via email to owners/admins
   const recipients = await prisma.platformUser.findMany({
