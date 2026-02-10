@@ -50,8 +50,8 @@ describe('requirePermission', () => {
     next = vi.fn();
   });
 
-  it('should allow owner to manage brands', () => {
-    const middleware = requirePermission('brands:manage');
+  it('should allow owner to create brands', () => {
+    const middleware = requirePermission('brands:create');
     middleware(createReqWithRole('owner'), mockRes, next);
     expect(next).toHaveBeenCalledWith();
   });
