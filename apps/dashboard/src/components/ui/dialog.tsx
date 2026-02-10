@@ -1,15 +1,22 @@
 'use client';
 
 import {
+  createContext,
   forwardRef,
   useCallback,
+  useContext,
   useEffect,
   useRef,
   type HTMLAttributes,
   type ReactNode,
+  Children,
+  isValidElement,
+  cloneElement,
 } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+const DialogContext = createContext<{ onOpenChange: (open: boolean) => void }>({ onOpenChange: () => {} });
 
 interface DialogProps {
   open: boolean;
@@ -35,16 +42,30 @@ function Dialog({ open, onOpenChange, children }: DialogProps) {
     };
   }, [open, handleEscape]);
 
-  if (!open) return null;
+  // Filter out DialogTrigger from children rendered inside the overlay
+  const triggerChildren: ReactNode[] = [];
+  const overlayChildren: ReactNode[] = [];
+  Children.forEach(children, (child) => {
+    if (isValidElement(child) && (child.type as { displayName?: string }).displayName === 'DialogTrigger') {
+      triggerChildren.push(child);
+    } else {
+      overlayChildren.push(child);
+    }
+  });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div
-        className="fixed inset-0 bg-black/80 animate-in fade-in-0"
-        onClick={() => onOpenChange(false)}
-      />
-      {children}
-    </div>
+    <DialogContext.Provider value={{ onOpenChange }}>
+      {triggerChildren}
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="fixed inset-0 bg-black/80 animate-in fade-in-0"
+            onClick={() => onOpenChange(false)}
+          />
+          {overlayChildren}
+        </div>
+      )}
+    </DialogContext.Provider>
   );
 }
 
@@ -117,4 +138,30 @@ const DialogFooter = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
 );
 DialogFooter.displayName = 'DialogFooter';
 
-export { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter };
+interface DialogTriggerProps {
+  children: ReactNode;
+  asChild?: boolean;
+}
+
+const DialogTrigger = forwardRef<HTMLButtonElement, DialogTriggerProps>(
+  ({ children, asChild }, ref) => {
+    const { onOpenChange } = useContext(DialogContext);
+    const handleClick = () => onOpenChange(true);
+
+    if (asChild && isValidElement(children)) {
+      return cloneElement(children as React.ReactElement<{ onClick?: () => void; ref?: React.Ref<unknown> }>, {
+        onClick: handleClick,
+        ref,
+      });
+    }
+
+    return (
+      <button ref={ref} onClick={handleClick}>
+        {children}
+      </button>
+    );
+  },
+);
+DialogTrigger.displayName = 'DialogTrigger';
+
+export { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger };

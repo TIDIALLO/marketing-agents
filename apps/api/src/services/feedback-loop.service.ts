@@ -428,7 +428,7 @@ Limite à 5 insights. Réponds uniquement avec le JSON.`,
     const byCategory: Record<string, typeof parsed.insights> = {};
     for (const insight of parsed.insights) {
       if (!byCategory[insight.category]) byCategory[insight.category] = [];
-      byCategory[insight.category].push(insight);
+      byCategory[insight.category]!.push(insight);
     }
 
     for (const [category, categoryInsights] of Object.entries(byCategory)) {

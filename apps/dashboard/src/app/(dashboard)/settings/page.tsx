@@ -6,6 +6,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useLocale } from '@/providers/IntlProvider';
 import { apiClient } from '@/lib/api';
+import { useApi } from '@/hooks/use-api';
 import { useToast } from '@/providers/ToastProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +24,11 @@ interface SocialAccount {
   status: string;
 }
 
+interface Brand {
+  id: string;
+  name: string;
+}
+
 export default function SettingsPage() {
   const t = useTranslations('settings');
   const tCommon = useTranslations('common');
@@ -35,6 +41,7 @@ export default function SettingsPage() {
   const [slackNotif, setSlackNotif] = useState(user?.notificationPreferences?.slack ?? true);
   const [emailNotif, setEmailNotif] = useState(user?.notificationPreferences?.email ?? true);
 
+  const { data: brands } = useApi<Brand[]>('/api/brands');
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
 
   // Check for connected parameter in URL
@@ -52,14 +59,16 @@ export default function SettingsPage() {
     }
   }, []);
 
-  // Load social accounts
+  // Load social accounts (requires brandId)
   useEffect(() => {
-    apiClient('/api/social-accounts')
-      .then((res: { data?: SocialAccount[] }) => {
+    if (!brands || brands.length === 0) return;
+    const brandId = brands[0].id;
+    apiClient<SocialAccount[]>(`/api/social-accounts?brandId=${brandId}`)
+      .then((res) => {
         if (res.data) setSocialAccounts(res.data);
       })
       .catch(() => {});
-  }, []);
+  }, [brands]);
 
   const handleSaveProfile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

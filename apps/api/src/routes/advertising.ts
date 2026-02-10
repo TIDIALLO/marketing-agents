@@ -151,7 +151,7 @@ router.post(
 router.post(
   '/optimize',
   requirePermission('content:approve'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (_req, res) => {
     const results = await advertisingService.optimizeCampaigns();
     res.json({ success: true, data: results });
   }),

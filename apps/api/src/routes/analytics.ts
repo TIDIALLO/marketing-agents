@@ -166,7 +166,7 @@ router.post(
 router.post(
   '/weekly-report',
   requirePermission('content:approve'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (_req, res) => {
     const result = await reportingService.generateWeeklyReport();
     res.json({ success: true, data: result });
   }),

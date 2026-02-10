@@ -13,7 +13,7 @@ router.get('/templates', asyncHandler(async (req, res) => {
   res.json({ success: true, data: templates });
 }));
 
-router.get('/templates/:id', asyncHandler(async (req, res) => {
+router.get<{ id: string }>('/templates/:id', asyncHandler<{ id: string }>(async (req, res) => {
   const template = await emailService.getTemplateById(req.params.id);
   res.json({ success: true, data: template });
 }));
@@ -23,12 +23,12 @@ router.post('/templates', asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, data: template });
 }));
 
-router.put('/templates/:id', asyncHandler(async (req, res) => {
+router.put<{ id: string }>('/templates/:id', asyncHandler<{ id: string }>(async (req, res) => {
   const template = await emailService.updateTemplate(req.params.id, req.body);
   res.json({ success: true, data: template });
 }));
 
-router.delete('/templates/:id', asyncHandler(async (req, res) => {
+router.delete<{ id: string }>('/templates/:id', asyncHandler<{ id: string }>(async (req, res) => {
   await emailService.deleteTemplate(req.params.id);
   res.json({ success: true, data: null });
 }));
@@ -41,7 +41,7 @@ router.get('/campaigns', asyncHandler(async (req, res) => {
   res.json({ success: true, data: campaigns });
 }));
 
-router.get('/campaigns/:id', asyncHandler(async (req, res) => {
+router.get<{ id: string }>('/campaigns/:id', asyncHandler<{ id: string }>(async (req, res) => {
   const campaign = await emailService.getCampaignById(req.params.id);
   res.json({ success: true, data: campaign });
 }));
@@ -51,22 +51,22 @@ router.post('/campaigns', asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, data: campaign });
 }));
 
-router.put('/campaigns/:id', asyncHandler(async (req, res) => {
+router.put<{ id: string }>('/campaigns/:id', asyncHandler<{ id: string }>(async (req, res) => {
   const campaign = await emailService.updateCampaign(req.params.id, req.body);
   res.json({ success: true, data: campaign });
 }));
 
-router.delete('/campaigns/:id', asyncHandler(async (req, res) => {
+router.delete<{ id: string }>('/campaigns/:id', asyncHandler<{ id: string }>(async (req, res) => {
   await emailService.deleteCampaign(req.params.id);
   res.json({ success: true, data: null });
 }));
 
-router.post('/campaigns/:id/send', asyncHandler(async (req, res) => {
+router.post<{ id: string }>('/campaigns/:id/send', asyncHandler<{ id: string }>(async (req, res) => {
   const result = await emailService.sendCampaign(req.params.id);
   res.json({ success: true, data: result });
 }));
 
-router.post('/campaigns/:id/generate', asyncHandler(async (req, res) => {
+router.post<{ id: string }>('/campaigns/:id/generate', asyncHandler<{ id: string }>(async (req, res) => {
   const result = await emailService.generateEmailContent(req.params.id);
   res.json({ success: true, data: result });
 }));
@@ -74,7 +74,7 @@ router.post('/campaigns/:id/generate', asyncHandler(async (req, res) => {
 // ─── Public Tracking Routes (no auth) ───────────────────────
 
 // 1x1 pixel open tracking
-trackingRouter.get('/open/:campaignId/:leadId', asyncHandler(async (req, res) => {
+trackingRouter.get<{ campaignId: string; leadId: string }>('/open/:campaignId/:leadId', asyncHandler<{ campaignId: string; leadId: string }>(async (req, res) => {
   await emailService.trackOpen(req.params.campaignId, req.params.leadId);
   // Return transparent 1x1 GIF
   const pixel = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
@@ -83,7 +83,7 @@ trackingRouter.get('/open/:campaignId/:leadId', asyncHandler(async (req, res) =>
 }));
 
 // Click tracking with redirect
-trackingRouter.get('/click/:campaignId/:leadId', asyncHandler(async (req, res) => {
+trackingRouter.get<{ campaignId: string; leadId: string }>('/click/:campaignId/:leadId', asyncHandler<{ campaignId: string; leadId: string }>(async (req, res) => {
   await emailService.trackClick(req.params.campaignId, req.params.leadId);
   const url = (req.query.url as string) || '/';
   res.redirect(302, url);

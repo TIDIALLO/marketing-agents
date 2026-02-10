@@ -50,7 +50,7 @@ router.post(
 router.get(
   '/',
   requirePermission('brands:view'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (_req, res) => {
     const brands = await brandService.listBrands();
     res.json({ success: true, data: brands });
   }),

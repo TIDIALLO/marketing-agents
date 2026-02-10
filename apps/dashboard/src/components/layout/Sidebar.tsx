@@ -14,7 +14,6 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Clock,
   Package,
   Globe,
   Mail,
@@ -90,17 +89,7 @@ export function Sidebar() {
               title={collapsed ? t(item.key) : undefined}
             >
               <item.icon className="h-5 w-5 shrink-0" />
-              {!collapsed && (
-                <span className="flex items-center gap-2">
-                  {t(item.key)}
-                  {'badge' in item && item.badge && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
-                      <Clock className="h-2.5 w-2.5" />
-                      {item.badge}
-                    </span>
-                  )}
-                </span>
-              )}
+              {!collapsed && <span>{t(item.key)}</span>}
             </Link>
           );
         })}

@@ -42,7 +42,8 @@ router.post<{ id: string }>('/:id/generate', asyncHandler(async (req, res) => {
   // Generate from linked product
   const page = await landingPageService.getLandingPageById(req.params.id);
   if (!page.productId) {
-    return res.status(400).json({ success: false, error: { code: 'NO_PRODUCT', message: 'Landing page non liée à un produit' } });
+    res.status(400).json({ success: false, error: { code: 'NO_PRODUCT', message: 'Landing page non liée à un produit' } });
+    return;
   }
   const result = await landingPageService.generateLandingPageContent(page.productId);
   res.json({ success: true, data: result });
