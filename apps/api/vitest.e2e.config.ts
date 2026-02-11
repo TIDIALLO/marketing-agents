@@ -6,12 +6,12 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     root: path.resolve(__dirname),
-    include: ['src/**/*.test.ts'],
-    exclude: ['src/**/*.e2e.test.ts'],
-    coverage: {
-      provider: 'v8',
-      include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts', 'src/index.ts'],
+    include: ['src/**/*.e2e.test.ts'],
+    testTimeout: 30000,
+    hookTimeout: 30000,
+    fileParallelism: false,
+    sequence: {
+      concurrent: false,
     },
   },
   resolve: {
