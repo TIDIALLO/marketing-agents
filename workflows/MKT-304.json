@@ -27,7 +27,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://mkt-api:4000/api/webhooks/mkt-304",
+        "url": "http://mkt-api:4100/api/webhooks/mkt-304",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -59,7 +59,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://mkt-api:4000/api/webhooks/n8n-error",
+        "url": "http://mkt-api:4100/api/webhooks/n8n-error",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

@@ -21,7 +21,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://mkt-api:4000/api/internal/advertising/competitive-research",
+        "url": "http://mkt-api:4100/api/internal/advertising/competitive-research",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -60,7 +60,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://mkt-api:4000/api/webhooks/n8n-error",
+        "url": "http://mkt-api:4100/api/webhooks/n8n-error",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

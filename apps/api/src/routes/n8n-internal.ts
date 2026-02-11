@@ -38,6 +38,13 @@ router.post('/approval/process-reminders', asyncHandler(async (_req, res) => {
   res.json({ success: true, data: result });
 }));
 
+// MKT-106: Schedule content to all platforms
+router.post<{contentPieceId: string}>('/content/schedule/:contentPieceId', asyncHandler(async (req, res) => {
+  const { adaptToAllPlatforms } = await import('../services/publishing.service');
+  const result = await adaptToAllPlatforms(req.params.contentPieceId);
+  res.json({ success: true, data: result });
+}));
+
 // MKT-107: Publish due content
 router.post('/content/publish-due', asyncHandler(async (_req, res) => {
   const { publishScheduledContent } = await import('../services/publishing.service');
@@ -59,6 +66,73 @@ router.post('/metrics/detect-signals', asyncHandler(async (_req, res) => {
   res.json({ success: true, data: result });
 }));
 
+// ─── Agent 2: Amplification Engine ─────────────────────────
+
+// MKT-201: Competitive research
+router.post('/advertising/competitive-research', asyncHandler(async (_req, res) => {
+  const { prisma } = await import('../lib/prisma');
+  const { runCompetitorResearch } = await import('../services/advertising.service');
+  const brand = await prisma.brand.findFirst();
+  if (!brand) { res.json({ success: false, message: 'No brand found' }); return; }
+  const result = await runCompetitorResearch(brand.id);
+  res.json({ success: true, data: result });
+}));
+
+// MKT-202: Propose ad campaign from signal
+router.post('/advertising/propose-campaign', asyncHandler(async (req, res) => {
+  const { prisma } = await import('../lib/prisma');
+  const { generateCampaignProposal } = await import('../services/advertising.service');
+  const { signalId } = req.body;
+  const signal = await prisma.contentSignal.findUniqueOrThrow({ where: { id: signalId } });
+  const brand = await prisma.brand.findFirst();
+  const adAccount = await prisma.adAccount.findFirst({
+    where: { socialAccount: { brandId: brand?.id } },
+  });
+  const result = await generateCampaignProposal({
+    brandId: brand!.id,
+    adAccountId: adAccount!.id,
+    contentSignalId: signal.id,
+    platform: adAccount!.platform,
+    objective: undefined,
+  });
+  res.json({ success: true, data: result });
+}));
+
+// MKT-203: Approval gate for ad campaigns
+router.post('/advertising/approval-gate', asyncHandler(async (req, res) => {
+  const { launchCampaign } = await import('../services/advertising.service');
+  const { prisma } = await import('../lib/prisma');
+  const { campaignId, decision } = req.body;
+  if (decision === 'approved') {
+    const result = await launchCampaign(campaignId);
+    res.json({ success: true, data: result });
+  } else {
+    await prisma.adCampaign.update({ where: { id: campaignId }, data: { status: decision === 'rejected' ? 'REJECTED' : 'DRAFT' } });
+    res.json({ success: true, data: { status: decision } });
+  }
+}));
+
+// MKT-203/204: Launch an ad campaign
+router.post<{campaignId: string}>('/advertising/launch/:campaignId', asyncHandler(async (req, res) => {
+  const { launchCampaign } = await import('../services/advertising.service');
+  const result = await launchCampaign(req.params.campaignId);
+  res.json({ success: true, data: result });
+}));
+
+// MKT-205: Collect ad metrics
+router.post('/advertising/collect-metrics', asyncHandler(async (_req, res) => {
+  const { collectAdMetrics } = await import('../services/advertising.service');
+  const result = await collectAdMetrics();
+  res.json({ success: true, data: result });
+}));
+
+// MKT-206: Optimize campaigns
+router.post('/advertising/optimize', asyncHandler(async (_req, res) => {
+  const { optimizeCampaigns } = await import('../services/advertising.service');
+  const result = await optimizeCampaigns();
+  res.json({ success: true, data: result });
+}));
+
 // ─── Agent 3: Opportunity Hunter ────────────────────────────
 
 // MKT-302: Score a lead
@@ -72,6 +146,38 @@ router.post<{leadId: string}>('/leads/score/:leadId', asyncHandler(async (req, r
 router.post<{leadId: string}>('/leads/book/:leadId', asyncHandler(async (req, res) => {
   const { createBookingProposal } = await import('../services/lead.service');
   const result = await createBookingProposal(req.params.leadId);
+  res.json({ success: true, data: result });
+}));
+
+// MKT-301/302: Enroll lead in nurturing sequence
+router.post('/nurturing/enroll', asyncHandler(async (req, res) => {
+  const { prisma } = await import('../lib/prisma');
+  const { enrollLead } = await import('../services/nurturing.service');
+  const { leadId, sequenceType } = req.body;
+  const sequence = await prisma.leadSequence.findFirst({
+    where: { name: { contains: sequenceType || 'warm', mode: 'insensitive' } },
+  });
+  if (!sequence) {
+    res.json({ success: true, message: `No sequence found matching type "${sequenceType}"` });
+    return;
+  }
+  const result = await enrollLead(leadId, sequence.id);
+  res.json({ success: true, data: result });
+}));
+
+// MKT-306: Generate sales briefing for a lead
+router.post<{leadId: string}>('/leads/briefing/:leadId', asyncHandler(async (req, res) => {
+  const { prisma } = await import('../lib/prisma');
+  const { generateSalesBriefing } = await import('../services/lead.service');
+  const booking = await prisma.calendarBooking.findFirst({
+    where: { leadId: req.params.leadId },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (!booking) {
+    res.json({ success: true, message: 'No booking found for this lead' });
+    return;
+  }
+  const result = await generateSalesBriefing(booking.id);
   res.json({ success: true, data: result });
 }));
 

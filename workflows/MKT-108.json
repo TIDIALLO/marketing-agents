@@ -21,7 +21,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://mkt-api:4000/api/internal/metrics/collect",
+        "url": "http://mkt-api:4100/api/internal/metrics/collect",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -42,7 +42,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://mkt-api:4000/api/internal/metrics/detect-signals",
+        "url": "http://mkt-api:4100/api/internal/metrics/detect-signals",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -71,7 +71,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://mkt-api:4000/api/webhooks/n8n-error",
+        "url": "http://mkt-api:4100/api/webhooks/n8n-error",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

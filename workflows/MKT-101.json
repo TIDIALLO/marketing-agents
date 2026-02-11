@@ -27,7 +27,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://mkt-api:4000/api/internal/content/research/{{ $json.inputId }}",
+        "url": "=http://mkt-api:4100/api/internal/content/research/{{ $json.inputId }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -48,7 +48,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://mkt-api:4000/api/internal/content/generate/{{ $json.inputId }}",
+        "url": "=http://mkt-api:4100/api/internal/content/generate/{{ $json.inputId }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -80,7 +80,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://mkt-api:4000/api/webhooks/n8n-error",
+        "url": "http://mkt-api:4100/api/webhooks/n8n-error",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

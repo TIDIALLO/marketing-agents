@@ -21,7 +21,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://mkt-api:4000/api/internal/content/publish-due",
+        "url": "http://mkt-api:4100/api/internal/content/publish-due",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -59,7 +59,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://mkt-api:4000/api/webhooks/n8n-error",
+        "url": "http://mkt-api:4100/api/webhooks/n8n-error",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -91,7 +91,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://mkt-api:4000/api/webhooks/n8n-error",
+        "url": "http://mkt-api:4100/api/webhooks/n8n-error",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

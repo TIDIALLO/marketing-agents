@@ -21,7 +21,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://mkt-api:4000/api/internal/tokens/refresh-expiring",
+        "url": "http://mkt-api:4100/api/internal/tokens/refresh-expiring",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -50,7 +50,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://mkt-api:4000/api/webhooks/n8n-error",
+        "url": "http://mkt-api:4100/api/webhooks/n8n-error",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

@@ -62,7 +62,7 @@ export default function SettingsPage() {
   // Load social accounts (requires brandId)
   useEffect(() => {
     if (!brands || brands.length === 0) return;
-    const brandId = brands[0].id;
+    const brandId = brands[0]!.id;
     apiClient<SocialAccount[]>(`/api/social-accounts?brandId=${brandId}`)
       .then((res) => {
         if (res.data) setSocialAccounts(res.data);

@@ -27,7 +27,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://mkt-api:4000/api/internal/leads/score/{{ $json.leadId }}",
+        "url": "=http://mkt-api:4100/api/internal/leads/score/{{ $json.leadId }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -65,7 +65,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://mkt-api:4000/api/internal/leads/book/{{ $json.data?.leadId || $json.leadId }}",
+        "url": "=http://mkt-api:4100/api/internal/leads/book/{{ $json.data?.leadId || $json.leadId }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -86,7 +86,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://mkt-api:4000/api/internal/nurturing/enroll",
+        "url": "http://mkt-api:4100/api/internal/nurturing/enroll",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -118,7 +118,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://mkt-api:4000/api/webhooks/n8n-error",
+        "url": "http://mkt-api:4100/api/webhooks/n8n-error",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
