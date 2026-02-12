@@ -92,7 +92,6 @@ app.use('/api/leads', authMiddleware, leadRoutes);
 app.use('/api/leads/nurturing', authMiddleware, nurturingRoutes);
 app.use('/api/advertising', authMiddleware, advertisingRoutes);
 app.use('/api/system', authMiddleware, systemRoutes);
-app.use('/api/admin', authMiddleware, settingsRoutes);
 app.use('/api/settings', authMiddleware, settingsRoutes);
 app.use('/api/products', authMiddleware, productRoutes);
 app.use('/api/landing-pages', authMiddleware, landingPageRoutes);

@@ -18,18 +18,6 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string): Prom
   );
 }
 
-export async function sendInvitationEmail(
-  to: string,
-  organizationName: string,
-  inviteUrl: string,
-): Promise<void> {
-  await sendEmail(
-    to,
-    `Invitation à rejoindre ${organizationName} — Synap6ia`,
-    `<p>Bonjour,</p><p>Vous avez été invité à rejoindre l'organisation <strong>${organizationName}</strong> sur Synap6ia Marketing.</p><p><a href="${inviteUrl}">Accepter l'invitation</a></p><p>Ce lien expire dans 7 jours.</p>`,
-  );
-}
-
 // ─── Approval Emails (Stories 4.2, 4.3) ──────────────────────
 
 export async function sendApprovalEmail(

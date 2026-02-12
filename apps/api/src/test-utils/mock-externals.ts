@@ -59,7 +59,6 @@ export function mockN8n() {
 export function mockEmail() {
   const mocks = {
     sendPasswordResetEmail: vi.fn().mockResolvedValue(undefined),
-    sendInvitationEmail: vi.fn().mockResolvedValue(undefined),
     sendApprovalEmail: vi.fn().mockResolvedValue(undefined),
     sendApprovalReminderEmail: vi.fn().mockResolvedValue(undefined),
     sendNurturingEmail: vi.fn().mockResolvedValue(undefined),

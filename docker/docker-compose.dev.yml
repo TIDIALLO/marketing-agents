@@ -12,8 +12,3 @@ services:
 
   mkt-redis:
     command: redis-server --requirepass dev_redis_123
-
-  mkt-minio:
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin123

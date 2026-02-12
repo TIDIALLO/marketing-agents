@@ -28,7 +28,6 @@
     "helmet": "^8.0.0",
     "ioredis": "^5.4.0",
     "jsonwebtoken": "^9.0.2",
-    "minio": "^8.0.6",
     "puppeteer": "^24.37.2",
     "resend": "^6.9.1",
     "socket.io": "^4.8.0",

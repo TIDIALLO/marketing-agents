@@ -85,14 +85,16 @@ router.post('/advertising/propose-campaign', asyncHandler(async (req, res) => {
   const { signalId } = req.body;
   const signal = await prisma.contentSignal.findUniqueOrThrow({ where: { id: signalId } });
   const brand = await prisma.brand.findFirst();
+  if (!brand) { res.json({ success: false, message: 'No brand found' }); return; }
   const adAccount = await prisma.adAccount.findFirst({
-    where: { socialAccount: { brandId: brand?.id } },
+    where: { socialAccount: { brandId: brand.id } },
   });
+  if (!adAccount) { res.json({ success: false, message: 'No ad account found' }); return; }
   const result = await generateCampaignProposal({
-    brandId: brand!.id,
-    adAccountId: adAccount!.id,
+    brandId: brand.id,
+    adAccountId: adAccount.id,
     contentSignalId: signal.id,
-    platform: adAccount!.platform,
+    platform: adAccount.platform,
     objective: undefined,
   });
   res.json({ success: true, data: result });
