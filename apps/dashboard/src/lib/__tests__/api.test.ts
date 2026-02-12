@@ -69,6 +69,11 @@ describe('api', () => {
       });
 
       await expect(apiClient('/api/missing')).rejects.toThrow(ApiClientError);
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: async () => ({ success: false, error: { code: 'NOT_FOUND', message: 'Not found' } }),
+      });
       try {
         await apiClient('/api/missing');
       } catch (err) {
@@ -76,6 +81,46 @@ describe('api', () => {
         expect((err as ApiClientError).code).toBe('NOT_FOUND');
         expect((err as ApiClientError).status).toBe(404);
       }
+    });
+
+    it('should auto-refresh token on 401 and retry', async () => {
+      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('expired-token');
+
+      mockFetch
+        // First call: 401
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+          json: async () => ({ success: false, error: { code: 'UNAUTHORIZED', message: 'Token expired' } }),
+        })
+        // Refresh call: success
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, data: { accessToken: 'new-token' } }),
+        })
+        // Retry call: success
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, data: { id: '1' } }),
+        });
+
+      const result = await apiClient('/api/test');
+
+      expect(result.data).toEqual({ id: '1' });
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+      expect(localStorage.setItem).toHaveBeenCalledWith('access_token', 'new-token');
+    });
+
+    it('should not refresh on 401 for auth endpoints', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: async () => ({ success: false, error: { code: 'UNAUTHORIZED', message: 'Bad credentials' } }),
+      });
+
+      await expect(apiClient('/api/auth/login', { method: 'POST', body: {} })).rejects.toThrow(ApiClientError);
+      // Only 1 call, no refresh attempt
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
     it('should include pagination when present', async () => {

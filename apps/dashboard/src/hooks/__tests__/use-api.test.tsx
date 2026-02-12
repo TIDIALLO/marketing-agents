@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 
 vi.mock('@/lib/api', () => ({
   apiClient: vi.fn(),
@@ -74,7 +74,7 @@ describe('useApi', () => {
     });
 
     mockApiClient.mockResolvedValue({ success: true, data: 'v2' } as any);
-    await result.current.mutate();
+    await act(() => result.current.mutate());
 
     await waitFor(() => {
       expect(result.current.data).toBe('v2');

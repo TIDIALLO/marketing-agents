@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Package, Sparkles, Plus, ExternalLink } from 'lucide-react';
+import { useToast } from '@/providers/ToastProvider';
 
 interface Product {
   id: string;
@@ -29,6 +30,7 @@ export default function ProductsPage() {
   const [creating, setCreating] = useState(false);
   const [generating, setGenerating] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const { toast } = useToast();
 
   const fetchProducts = useCallback(async () => {
     try {
@@ -57,9 +59,11 @@ export default function ProductsPage() {
         },
       });
       setDialogOpen(false);
+      toast({ title: 'Produit créé', variant: 'success' });
       fetchProducts();
     } catch (err) {
       console.error('Failed to create product:', err);
+      toast({ title: 'Erreur', description: 'La création du produit a échoué', variant: 'destructive' });
     } finally {
       setCreating(false);
     }
@@ -69,9 +73,11 @@ export default function ProductsPage() {
     setGenerating(productId);
     try {
       await apiClient(`/api/products/${productId}/generate-content`, { method: 'POST' });
+      toast({ title: 'Contenu généré', description: 'Le produit a été mis à jour avec le contenu IA', variant: 'success' });
       fetchProducts();
     } catch (err) {
       console.error('Failed to generate content:', err);
+      toast({ title: 'Erreur', description: 'La génération de contenu a échoué', variant: 'destructive' });
     } finally {
       setGenerating(null);
     }

@@ -19,6 +19,10 @@ const PLATFORM_LIMITS: Record<string, number> = {
 function buildVoicePrompt(voice: BrandVoiceConfig | null, platform?: string): string {
   if (!voice) return 'Voix de marque: professionnelle et engageante';
 
+  // Handle case where brandVoice is a plain string instead of structured config
+  if (typeof voice === 'string') return `Voix de marque: ${voice}`;
+  if (!voice.languageStyle || !voice.tone) return `Voix de marque: ${JSON.stringify(voice)}`;
+
   const override = platform ? voice.platformOverrides?.[platform] : undefined;
 
   const tone = (override && typeof override === 'object' && override.tone) ? override.tone : voice.tone;

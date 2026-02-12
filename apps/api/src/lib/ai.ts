@@ -15,6 +15,28 @@ export async function claudeGenerate(
 ): Promise<string> {
   if (!CLAUDE_API_KEY) {
     console.log('[DEV] Claude API not configured — returning mock response');
+    // If the prompt asks for JSON, return a plausible mock JSON
+    if (systemPrompt.includes('JSON')) {
+      return JSON.stringify({
+        tagline: '[MOCK] Tagline générée par IA',
+        description: '[MOCK] Description courte générée automatiquement.',
+        longDescription: '[MOCK] Description longue en markdown.\n\n**Problème**: ...\n\n**Solution**: ...',
+        title: '[MOCK] Titre généré',
+        body: '[MOCK] Contenu généré automatiquement pour test.',
+        hashtags: ['#mock', '#test'],
+        callToAction: '[MOCK] Découvrir maintenant',
+        framework: 'pas',
+        features: [
+          { icon: 'sparkles', title: '[MOCK] Feature 1', description: 'Description mock' },
+        ],
+        ctaText: '[MOCK] Essayer gratuitement',
+        seoTitle: '[MOCK] SEO Title',
+        seoDescription: '[MOCK] SEO meta description pour le produit.',
+        subject: '[MOCK] Sujet email',
+        previewText: '[MOCK] Aperçu email',
+        htmlContent: '<p>[MOCK] Contenu email HTML</p>',
+      });
+    }
     return `[MOCK] AI response for: ${userMessage.slice(0, 100)}...`;
   }
 

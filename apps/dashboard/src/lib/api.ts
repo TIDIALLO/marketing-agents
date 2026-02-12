@@ -21,10 +21,33 @@ export function clearAccessToken(): void {
   localStorage.removeItem('access_token');
 }
 
-export async function apiClient<T>(
-  endpoint: string,
-  options: RequestOptions = {},
-): Promise<ApiResponse<T>> {
+// Prevent multiple concurrent refresh requests
+let refreshPromise: Promise<boolean> | null = null;
+
+async function tryRefreshToken(): Promise<boolean> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      setAccessToken(data.data.accessToken);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+async function doFetch(endpoint: string, options: RequestOptions): Promise<Response> {
   const { method = 'GET', body, headers = {} } = options;
 
   const token = getAccessToken();
@@ -36,12 +59,27 @@ export async function apiClient<T>(
     headers['Content-Type'] = 'application/json';
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  return fetch(`${API_BASE_URL}${endpoint}`, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
     credentials: 'include',
   });
+}
+
+export async function apiClient<T>(
+  endpoint: string,
+  options: RequestOptions = {},
+): Promise<ApiResponse<T>> {
+  let response = await doFetch(endpoint, options);
+
+  // On 401, try refreshing the token once and retry
+  if (response.status === 401 && !endpoint.includes('/api/auth/')) {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      response = await doFetch(endpoint, options);
+    }
+  }
 
   const data = await response.json();
 
