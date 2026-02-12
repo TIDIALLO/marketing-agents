@@ -94,6 +94,37 @@ async function main() {
   });
   console.log(`  Product: ${product.name}`);
 
+  // ─── Landing Page ──────────────────────────────────────────
+  const landingPage = await prisma.landingPage.upsert({
+    where: { slug: 'soc-autopilot-hub' },
+    update: {},
+    create: {
+      id: 'seed-landing-001',
+      brandId: brand.id,
+      productId: product.id,
+      slug: 'soc-autopilot-hub',
+      title: 'SOC Autopilot Hub — Cybersécurité automatisée pour PME',
+      heroTitle: 'Votre SOC automatisé, prêt en 24h',
+      heroSubtitle: 'Détection, réponse et conformité sans équipe cyber dédiée. À partir de 299€/mois.',
+      heroCtaText: 'Demander une démo gratuite',
+      heroCtaUrl: 'https://synap6ia.com/demo',
+      sections: [
+        { type: 'features', title: 'Pourquoi SOC Autopilot Hub ?' },
+        { type: 'pricing', title: 'Tarifs simples et transparents' },
+        { type: 'testimonials', title: 'Ils nous font confiance' },
+        { type: 'faq', title: 'Questions fréquentes', items: [
+          { q: 'Combien de temps pour le déploiement ?', a: '24 heures. Notre équipe configure tout pour vous.' },
+          { q: 'Faut-il une équipe cyber en interne ?', a: 'Non. SOC Autopilot Hub gère 95% des alertes automatiquement.' },
+          { q: 'Quelles normes de conformité sont couvertes ?', a: 'ISO 27001, RGPD, et les normes BCEAO pour le secteur bancaire.' },
+        ]},
+      ],
+      seoTitle: 'SOC Autopilot Hub | Cybersécurité automatisée pour PME',
+      seoDescription: 'Plateforme SOC automatisée pour PME : détection 24/7, réponse automatique, conformité ISO/RGPD. Déployé en 24h, à partir de 299€/mois.',
+      isPublished: true,
+    },
+  });
+  console.log(`  Landing page: ${landingPage.slug}`);
+
   // ─── Content Pieces ──────────────────────────────────────────
   const contentPieces = [
     {
