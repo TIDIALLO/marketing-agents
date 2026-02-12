@@ -4,6 +4,7 @@ import { validate } from '../middleware/validate';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { requirePermission } from '../middleware/requireRole';
 import * as leadService from '../services/lead.service';
+import { prisma } from '../lib/prisma';
 
 // ─── Schemas ─────────────────────────────────────────────────
 
@@ -89,6 +90,32 @@ router.put<{ id: string }>(
   validate(updateLeadSchema),
   asyncHandler(async (req, res) => {
     const lead = await leadService.updateLead(req.params.id, req.body);
+    res.json({ success: true, data: lead });
+  }),
+);
+
+// GET /api/leads/:id/interactions — list interactions for a lead
+router.get<{ id: string }>(
+  '/:id/interactions',
+  requirePermission('content:view'),
+  asyncHandler(async (req, res) => {
+    const interactions = await prisma.leadInteraction.findMany({
+      where: { leadId: req.params.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ success: true, data: interactions });
+  }),
+);
+
+// POST /api/leads/:id/escalate — escalate lead to hot + opportunity
+router.post<{ id: string }>(
+  '/:id/escalate',
+  requirePermission('content:create'),
+  asyncHandler(async (req, res) => {
+    const lead = await leadService.updateLead(req.params.id, {
+      temperature: 'hot',
+      status: 'opportunity',
+    });
     res.json({ success: true, data: lead });
   }),
 );
