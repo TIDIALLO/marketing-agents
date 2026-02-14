@@ -70,7 +70,7 @@ Réponds en 3-4 phrases concises.`,
     }
   } else {
     // Mock fallback
-    console.log('[Meta] Not configured — generating mock competitor data');
+    console.warn('[Advertising] META_ACCESS_TOKEN not configured — generating mock competitor data');
     const mockCompetitors = ['Concurrent A', 'Concurrent B'];
 
     for (const competitorName of mockCompetitors) {
@@ -342,7 +342,7 @@ async function launchFacebookCampaign(campaign: {
   creatives: { id: string; title: string; body: string; imageUrl: string; callToActionType: string }[];
 }): Promise<string> {
   if (!isMetaConfigured()) {
-    console.log(`[Meta] Not configured — using mock for campaign "${campaign.name}"`);
+    console.warn(`[Advertising] META_ACCESS_TOKEN not configured — campaign "${campaign.name}" uses mock IDs (non-functional)`);
     for (const adSet of campaign.adSets) {
       await prisma.adSet.update({
         where: { id: adSet.id },
@@ -435,7 +435,7 @@ async function launchTikTokCampaign(campaign: {
   adSets: { id: string; name: string }[];
   creatives: { id: string; title: string }[];
 }): Promise<string> {
-  console.log(`[DEV] TikTok Ads API — launching campaign "${campaign.name}"`);
+  console.warn(`[Advertising] TikTok Ads API not implemented — campaign "${campaign.name}" uses mock IDs (non-functional)`);
 
   for (const adSet of campaign.adSets) {
     await prisma.adSet.update({
@@ -522,7 +522,7 @@ export async function collectAdMetrics() {
       }
     } else {
       // Mock metrics for non-Meta or unconfigured
-      console.log(`[Meta] Not configured — generating mock metrics for "${campaign.name}"`);
+      console.warn(`[Advertising] META_ACCESS_TOKEN not configured — generating mock metrics for "${campaign.name}"`);
       impressions = Math.floor(Math.random() * 10000) + 1000;
       clicks = Math.floor(impressions * (Math.random() * 0.05 + 0.01));
       spend = parseFloat((campaign.dailyBudget * (0.5 + Math.random() * 0.5)).toFixed(2));

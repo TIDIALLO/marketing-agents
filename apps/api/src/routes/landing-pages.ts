@@ -1,6 +1,25 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { validate } from '../middleware/validate';
 import * as landingPageService from '../services/landing-page.service';
+
+// ─── Validation Schemas ─────────────────────────────────────
+const createLandingPageSchema = z.object({
+  brandId: z.string().min(1),
+  productId: z.string().optional(),
+  title: z.string().min(1),
+  slug: z.string().min(1).optional(),
+  heroTitle: z.string().optional(),
+  heroSubtitle: z.string().optional(),
+  heroCtaText: z.string().optional(),
+  heroCtaUrl: z.string().optional(),
+  sections: z.any().optional(),
+  seoTitle: z.string().optional(),
+  seoDescription: z.string().optional(),
+});
+
+const updateLandingPageSchema = createLandingPageSchema.partial();
 
 const router = Router();
 const publicRouter = Router();
@@ -18,12 +37,12 @@ router.get<{ id: string }>('/:id', asyncHandler(async (req, res) => {
   res.json({ success: true, data: page });
 }));
 
-router.post('/', asyncHandler(async (req, res) => {
+router.post('/', validate(createLandingPageSchema), asyncHandler(async (req, res) => {
   const page = await landingPageService.createLandingPage(req.body);
   res.status(201).json({ success: true, data: page });
 }));
 
-router.put<{ id: string }>('/:id', asyncHandler(async (req, res) => {
+router.put<{ id: string }>('/:id', validate(updateLandingPageSchema), asyncHandler(async (req, res) => {
   const page = await landingPageService.updateLandingPage(req.params.id, req.body);
   res.json({ success: true, data: page });
 }));

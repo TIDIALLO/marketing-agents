@@ -405,8 +405,12 @@ async function publishToSocialPlatform(
     }
 
     default: {
-      // Unsupported platforms — log and return mock
-      console.log(`[${platform}] Platform not yet supported, skipping publish`);
+      const msg = `[Publishing] Platform "${platform}" not yet supported — content not published`;
+      if (process.env.NODE_ENV === 'production') {
+        console.warn(msg);
+      } else {
+        console.log(msg);
+      }
       return `unsupported-${platform}-${Date.now()}`;
     }
   }

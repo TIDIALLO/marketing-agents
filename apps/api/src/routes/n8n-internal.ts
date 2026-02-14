@@ -1,6 +1,34 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { apiKeyAuth } from '../middleware/apiKeyAuth';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { validate } from '../middleware/validate';
+
+// ─── Validation Schemas ─────────────────────────────────────
+const submitApprovalSchema = z.object({
+  entityType: z.string().min(1),
+  entityId: z.string().min(1),
+  assigneeId: z.string().optional(),
+  priority: z.number().int().min(1).max(5).optional(),
+});
+
+const proposeCampaignSchema = z.object({
+  signalId: z.string().min(1),
+});
+
+const approvalGateSchema = z.object({
+  campaignId: z.string().min(1),
+  decision: z.enum(['approved', 'rejected', 'revision']),
+});
+
+const enrollNurturingSchema = z.object({
+  leadId: z.string().min(1),
+  sequenceType: z.string().optional(),
+});
+
+const dailyAggregateSchema = z.object({
+  date: z.string().optional(),
+});
 
 const router = Router();
 
@@ -24,7 +52,7 @@ router.post<{inputId: string}>('/content/generate/:inputId', asyncHandler(async 
 }));
 
 // MKT-104: Submit content for approval
-router.post('/approval/submit', asyncHandler(async (req, res) => {
+router.post('/approval/submit', validate(submitApprovalSchema), asyncHandler(async (req, res) => {
   const { submitForApproval } = await import('../services/approval.service');
   const { entityType, entityId, assigneeId, priority } = req.body;
   const result = await submitForApproval(entityType, entityId, assigneeId, priority);
@@ -79,7 +107,7 @@ router.post('/advertising/competitive-research', asyncHandler(async (_req, res) 
 }));
 
 // MKT-202: Propose ad campaign from signal
-router.post('/advertising/propose-campaign', asyncHandler(async (req, res) => {
+router.post('/advertising/propose-campaign', validate(proposeCampaignSchema), asyncHandler(async (req, res) => {
   const { prisma } = await import('../lib/prisma');
   const { generateCampaignProposal } = await import('../services/advertising.service');
   const { signalId } = req.body;
@@ -101,7 +129,7 @@ router.post('/advertising/propose-campaign', asyncHandler(async (req, res) => {
 }));
 
 // MKT-203: Approval gate for ad campaigns
-router.post('/advertising/approval-gate', asyncHandler(async (req, res) => {
+router.post('/advertising/approval-gate', validate(approvalGateSchema), asyncHandler(async (req, res) => {
   const { launchCampaign } = await import('../services/advertising.service');
   const { prisma } = await import('../lib/prisma');
   const { campaignId, decision } = req.body;
@@ -152,7 +180,7 @@ router.post<{leadId: string}>('/leads/book/:leadId', asyncHandler(async (req, re
 }));
 
 // MKT-301/302: Enroll lead in nurturing sequence
-router.post('/nurturing/enroll', asyncHandler(async (req, res) => {
+router.post('/nurturing/enroll', validate(enrollNurturingSchema), asyncHandler(async (req, res) => {
   const { prisma } = await import('../lib/prisma');
   const { enrollLead } = await import('../services/nurturing.service');
   const { leadId, sequenceType } = req.body;
@@ -193,7 +221,7 @@ router.post('/nurturing/execute-followups', asyncHandler(async (_req, res) => {
 // ─── Reporting & Utilities ──────────────────────────────────
 
 // MKT-402: Daily analytics aggregation
-router.post('/reporting/daily-aggregate', asyncHandler(async (req, res) => {
+router.post('/reporting/daily-aggregate', validate(dailyAggregateSchema), asyncHandler(async (req, res) => {
   const { aggregateDailyAnalytics } = await import('../services/reporting.service');
   const result = await aggregateDailyAnalytics(req.body.date);
   res.json({ success: true, data: result });

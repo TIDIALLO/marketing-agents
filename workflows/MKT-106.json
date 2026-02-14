@@ -37,7 +37,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://mkt-api:4100/api/internal/content/generate/{{ $json.contentPieceId }}",
+        "url": "=http://mkt-api:4100/api/internal/content/schedule/{{ $json.contentPieceId }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -49,7 +49,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ platform: $json.platform, adaptation: true }) }}",
+        "jsonBody": "={{ JSON.stringify({ platform: $json.platform }) }}",
         "options": {}
       },
       "id": "generate-adapted",

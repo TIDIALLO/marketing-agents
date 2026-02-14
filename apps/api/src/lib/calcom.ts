@@ -53,7 +53,7 @@ export async function getAvailableSlots(
   limit = 3,
 ): Promise<AvailableSlot[]> {
   if (!isConfigured()) {
-    console.log('[Cal.com] Not configured — returning mock slots');
+    console.warn('[Cal.com] CALCOM_API_KEY not configured — returning mock slots');
     return getMockSlots();
   }
 
@@ -136,7 +136,7 @@ interface BookingResponse {
 
 export async function createBooking(input: CreateBookingInput): Promise<BookingResponse['data'] | null> {
   if (!isConfigured()) {
-    console.log('[Cal.com] Not configured — skipping booking creation');
+    console.warn('[Cal.com] CALCOM_API_KEY not configured — skipping booking creation');
     return null;
   }
 
@@ -169,7 +169,7 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingR
 
 export async function cancelBooking(bookingUid: string, reason?: string): Promise<boolean> {
   if (!isConfigured()) {
-    console.log('[Cal.com] Not configured — skipping booking cancellation');
+    console.warn('[Cal.com] CALCOM_API_KEY not configured — skipping booking cancellation');
     return false;
   }
 
@@ -192,7 +192,7 @@ export async function rescheduleBooking(
   newStartTime: string,
 ): Promise<BookingResponse['data'] | null> {
   if (!isConfigured()) {
-    console.log('[Cal.com] Not configured — skipping reschedule');
+    console.warn('[Cal.com] CALCOM_API_KEY not configured — skipping reschedule');
     return null;
   }
 

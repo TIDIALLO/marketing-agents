@@ -1,6 +1,27 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { validate } from '../middleware/validate';
 import * as emailService from '../services/email-marketing.service';
+
+// ─── Validation Schemas ─────────────────────────────────────
+const createTemplateSchema = z.object({
+  brandId: z.string().min(1),
+  name: z.string().min(1),
+  subject: z.string().min(1),
+  htmlContent: z.string().min(1),
+});
+
+const updateTemplateSchema = createTemplateSchema.partial();
+
+const createCampaignSchema = z.object({
+  brandId: z.string().min(1),
+  name: z.string().min(1),
+  emailTemplateId: z.string().min(1),
+  recipientList: z.array(z.string().email()).min(1),
+});
+
+const updateCampaignSchema = createCampaignSchema.partial();
 
 const router = Router();
 const trackingRouter = Router();
@@ -18,12 +39,12 @@ router.get<{ id: string }>('/templates/:id', asyncHandler<{ id: string }>(async 
   res.json({ success: true, data: template });
 }));
 
-router.post('/templates', asyncHandler(async (req, res) => {
+router.post('/templates', validate(createTemplateSchema), asyncHandler(async (req, res) => {
   const template = await emailService.createTemplate(req.body);
   res.status(201).json({ success: true, data: template });
 }));
 
-router.put<{ id: string }>('/templates/:id', asyncHandler<{ id: string }>(async (req, res) => {
+router.put<{ id: string }>('/templates/:id', validate(updateTemplateSchema), asyncHandler<{ id: string }>(async (req, res) => {
   const template = await emailService.updateTemplate(req.params.id, req.body);
   res.json({ success: true, data: template });
 }));
@@ -46,12 +67,12 @@ router.get<{ id: string }>('/campaigns/:id', asyncHandler<{ id: string }>(async 
   res.json({ success: true, data: campaign });
 }));
 
-router.post('/campaigns', asyncHandler(async (req, res) => {
+router.post('/campaigns', validate(createCampaignSchema), asyncHandler(async (req, res) => {
   const campaign = await emailService.createCampaign(req.body);
   res.status(201).json({ success: true, data: campaign });
 }));
 
-router.put<{ id: string }>('/campaigns/:id', asyncHandler<{ id: string }>(async (req, res) => {
+router.put<{ id: string }>('/campaigns/:id', validate(updateCampaignSchema), asyncHandler<{ id: string }>(async (req, res) => {
   const campaign = await emailService.updateCampaign(req.params.id, req.body);
   res.json({ success: true, data: campaign });
 }));
