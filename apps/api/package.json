@@ -17,6 +17,7 @@
     "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@notionhq/client": "^2.2.15",
     "@prisma/client": "^6.3.0",
     "@synap6ia/shared": "*",
     "bcrypt": "^5.1.1",

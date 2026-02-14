@@ -2,9 +2,12 @@ import { prisma } from '../lib/prisma';
 import { AppError } from '../lib/errors';
 import { claudeGenerate, dalleGenerate } from '../lib/ai';
 import { sendSlackNotification } from '../lib/slack';
-import { decrypt } from '../lib/encryption';
-import { publishLinkedInPost } from '../lib/linkedin';
+import { decrypt, encrypt } from '../lib/encryption';
+import { publishLinkedInPost, refreshLinkedInToken } from '../lib/linkedin';
 import { publishTweet } from '../lib/twitter';
+import { publishInstagramPost } from '../lib/instagram';
+import { publishFacebookPost } from '../lib/facebook';
+import { getRedis } from '../lib/redis';
 import type { Platform } from '@synap6ia/shared';
 
 const PLATFORM_LIMITS: Record<string, number> = {
@@ -26,8 +29,10 @@ const OPTIMAL_HOURS: Record<string, number[]> = {
 
 const MAX_PUBLISH_RETRIES = 3;
 const RETRY_DELAY_MS = 30 * 60 * 1000; // 30 minutes
+const PUBLISH_BATCH_SIZE = 3;
+const TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000; // 5 minutes
 
-function getNextOptimalTime(platform: string): Date {
+export function getNextOptimalTime(platform: string): Date {
   const hours = OPTIMAL_HOURS[platform] ?? [10, 14, 18];
   const now = new Date();
   const currentHour = now.getUTCHours();
@@ -44,6 +49,99 @@ function getNextOptimalTime(platform: string): Date {
   }
 
   return target;
+}
+
+// ─── Token Cache + Validation ──────────────────────────────
+
+async function getValidAccessToken(socialAccountId: string): Promise<string> {
+  // 1. Check Redis cache first
+  try {
+    const redis = getRedis();
+    const cached = await redis.get(`token:${socialAccountId}`);
+    if (cached) return cached;
+  } catch {
+    // Redis unavailable, fall through to decrypt
+  }
+
+  // 2. Load account from DB
+  const account = await prisma.socialAccount.findUnique({ where: { id: socialAccountId } });
+  if (!account || !account.accessTokenEncrypted) {
+    throw new Error(`Social account ${socialAccountId} not found or has no access token`);
+  }
+
+  // 3. Check token expiration and refresh if needed
+  if (account.tokenExpiresAt) {
+    const expiresAt = new Date(account.tokenExpiresAt).getTime();
+    const now = Date.now();
+
+    if (expiresAt < now + TOKEN_EXPIRY_BUFFER_MS) {
+      // Token expired or about to expire — try refresh
+      if (account.refreshTokenEncrypted) {
+        try {
+          const refreshToken = decrypt(account.refreshTokenEncrypted);
+          const refreshed = await refreshLinkedInToken(refreshToken);
+
+          const newExpiresAt = new Date(Date.now() + refreshed.expiresIn * 1000);
+          await prisma.socialAccount.update({
+            where: { id: socialAccountId },
+            data: {
+              accessTokenEncrypted: encrypt(refreshed.accessToken),
+              refreshTokenEncrypted: refreshed.refreshToken ? encrypt(refreshed.refreshToken) : account.refreshTokenEncrypted,
+              tokenExpiresAt: newExpiresAt,
+            },
+          });
+
+          // Cache the new token
+          try {
+            const redis = getRedis();
+            const ttl = Math.min(3600, refreshed.expiresIn - 300);
+            if (ttl > 0) await redis.setex(`token:${socialAccountId}`, ttl, refreshed.accessToken);
+          } catch { /* Redis unavailable */ }
+
+          return refreshed.accessToken;
+        } catch (err) {
+          console.error(`[Token] Refresh failed for ${socialAccountId}:`, err);
+          // If refresh fails and token is already expired, mark inactive
+          if (expiresAt < now) {
+            await prisma.socialAccount.update({
+              where: { id: socialAccountId },
+              data: { status: 'inactive' },
+            });
+            throw new Error(`Token expired and refresh failed for account ${socialAccountId}`);
+          }
+          // Token not yet expired, proceed with current token
+        }
+      } else if (expiresAt < now) {
+        // No refresh token and token expired
+        await prisma.socialAccount.update({
+          where: { id: socialAccountId },
+          data: { status: 'inactive' },
+        });
+        throw new Error(`Token expired with no refresh token for account ${socialAccountId}`);
+      }
+    }
+  }
+
+  // 4. Decrypt and cache
+  let accessToken: string;
+  try {
+    accessToken = decrypt(account.accessTokenEncrypted);
+  } catch {
+    throw new Error(`Failed to decrypt access token for account ${socialAccountId}`);
+  }
+
+  // Cache in Redis
+  try {
+    const redis = getRedis();
+    let ttl = 3600; // default 1h
+    if (account.tokenExpiresAt) {
+      const secsUntilExpiry = Math.floor((new Date(account.tokenExpiresAt).getTime() - Date.now()) / 1000);
+      ttl = Math.min(3600, Math.max(60, secsUntilExpiry - 300));
+    }
+    await redis.setex(`token:${socialAccountId}`, ttl, accessToken);
+  } catch { /* Redis unavailable */ }
+
+  return accessToken;
 }
 
 // ─── Multi-Platform Adaptation (Story 4.4) ───────────────────
@@ -70,16 +168,15 @@ export async function adaptToAllPlatforms(pieceId: string) {
     return { source: sourcePiece, variants: [], schedules: [] };
   }
 
-  const variants = [];
-  const schedules = [];
+  // Parallelize Claude + DALL-E calls for all platforms
+  const adaptationResults = await Promise.allSettled(
+    targetAccounts.map(async (account) => {
+      const targetPlatform = account.platform as Platform;
+      const charLimit = PLATFORM_LIMITS[targetPlatform] ?? 2200;
 
-  for (const account of targetAccounts) {
-    const targetPlatform = account.platform as Platform;
-    const charLimit = PLATFORM_LIMITS[targetPlatform] ?? 2200;
-
-    // Adapt with Claude
-    const adapted = await claudeGenerate(
-      `Tu es un expert marketing social media. Adapte le contenu pour ${targetPlatform}.
+      // Adapt with Claude
+      const adapted = await claudeGenerate(
+        `Tu es un expert marketing social media. Adapte le contenu pour ${targetPlatform}.
 Contraintes:
 - Max ${charLimit} caractères pour le body
 - Voix de marque: ${JSON.stringify(sourcePiece.brand.brandVoice ?? 'professionnelle')}
@@ -90,36 +187,50 @@ ${targetPlatform === 'instagram' ? '- Visuel, emojis, hashtags abondants' : ''}
 
 Retourne un JSON: { "title": "...", "body": "...(max ${charLimit} car)", "hashtags": ["..."], "callToAction": "...", "mediaPrompt": "..." }
 Réponds uniquement avec le JSON.`,
-      `Contenu source (${sourcePlatform}):\nTitre: ${sourcePiece.title}\nBody: ${sourcePiece.body}\nHashtags: ${JSON.stringify(sourcePiece.hashtags)}`,
-    );
+        `Contenu source (${sourcePlatform}):\nTitre: ${sourcePiece.title}\nBody: ${sourcePiece.body}\nHashtags: ${JSON.stringify(sourcePiece.hashtags)}`,
+      );
 
-    let content: { title: string; body: string; hashtags: string[]; callToAction: string; mediaPrompt: string };
-    try {
-      content = JSON.parse(adapted);
-    } catch {
-      content = {
-        title: sourcePiece.title,
-        body: sourcePiece.body.slice(0, charLimit),
-        hashtags: sourcePiece.hashtags as string[],
-        callToAction: sourcePiece.callToAction ?? '',
-        mediaPrompt: '',
-      };
+      let content: { title: string; body: string; hashtags: string[]; callToAction: string; mediaPrompt: string };
+      try {
+        content = JSON.parse(adapted);
+      } catch {
+        content = {
+          title: sourcePiece.title,
+          body: sourcePiece.body.slice(0, charLimit),
+          hashtags: sourcePiece.hashtags as string[],
+          callToAction: sourcePiece.callToAction ?? '',
+          mediaPrompt: '',
+        };
+      }
+
+      // Generate variant visual if aspect ratio differs
+      let mediaUrl = sourcePiece.mediaUrl;
+      const needsNewVisual = targetPlatform === 'tiktok' || targetPlatform === 'instagram';
+
+      if (needsNewVisual && content.mediaPrompt) {
+        const size = targetPlatform === 'tiktok' || targetPlatform === 'instagram'
+          ? ('1024x1792' as const)
+          : ('1024x1024' as const);
+        const imageUrl = await dalleGenerate(content.mediaPrompt, { size });
+        mediaUrl = imageUrl;
+      }
+
+      return { account, content, mediaUrl, targetPlatform };
+    }),
+  );
+
+  // Create DB records sequentially (Prisma transaction safety)
+  const variants = [];
+  const schedules = [];
+
+  for (const result of adaptationResults) {
+    if (result.status === 'rejected') {
+      console.error('[Adapt] Platform adaptation failed:', result.reason);
+      continue;
     }
 
-    // Generate variant visual if aspect ratio differs
-    let mediaUrl = sourcePiece.mediaUrl;
-    const needsNewVisual = targetPlatform === 'tiktok' || targetPlatform === 'instagram';
+    const { account, content, mediaUrl, targetPlatform } = result.value;
 
-    if (needsNewVisual && content.mediaPrompt) {
-      const size = targetPlatform === 'tiktok' || targetPlatform === 'instagram'
-        ? ('1024x1792' as const)
-        : ('1024x1024' as const);
-      const imageUrl = await dalleGenerate(content.mediaPrompt, { size });
-      // Use DALL-E URL directly
-      mediaUrl = imageUrl;
-    }
-
-    // Create variant piece
     const variant = await prisma.contentPiece.create({
       data: {
         brandId: sourcePiece.brandId,
@@ -136,7 +247,6 @@ Réponds uniquement avec le JSON.`,
       },
     });
 
-    // Schedule at optimal time
     const scheduledAt = getNextOptimalTime(targetPlatform);
     const schedule = await prisma.contentSchedule.create({
       data: {
@@ -210,30 +320,43 @@ export async function scheduleContent(
 
 export async function listSchedules(
   filters?: { from?: Date; to?: Date; brandId?: string; status?: string },
+  pagination?: { skip?: number; take?: number },
 ) {
-  return prisma.contentSchedule.findMany({
-    where: {
-      contentPiece: {
-        ...(filters?.brandId ? { brandId: filters.brandId } : {}),
-      },
-      ...(filters?.status ? { status: filters.status } : {}),
-      ...(filters?.from || filters?.to
-        ? {
-            scheduledAt: {
-              ...(filters?.from ? { gte: filters.from } : {}),
-              ...(filters?.to ? { lte: filters.to } : {}),
-            },
-          }
-        : {}),
+  const skip = pagination?.skip ?? 0;
+  const take = pagination?.take ?? 50;
+
+  const where = {
+    contentPiece: {
+      ...(filters?.brandId ? { brandId: filters.brandId } : {}),
     },
-    include: {
-      contentPiece: {
-        select: { id: true, title: true, platform: true, status: true, mediaUrl: true, brandId: true },
+    ...(filters?.status ? { status: filters.status } : {}),
+    ...(filters?.from || filters?.to
+      ? {
+          scheduledAt: {
+            ...(filters?.from ? { gte: filters.from } : {}),
+            ...(filters?.to ? { lte: filters.to } : {}),
+          },
+        }
+      : {}),
+  };
+
+  const [data, total] = await Promise.all([
+    prisma.contentSchedule.findMany({
+      where,
+      include: {
+        contentPiece: {
+          select: { id: true, title: true, platform: true, status: true, mediaUrl: true, brandId: true },
+        },
+        socialAccount: { select: { id: true, platform: true, platformUsername: true } },
       },
-      socialAccount: { select: { id: true, platform: true, platformUsername: true } },
-    },
-    orderBy: { scheduledAt: 'asc' },
-  });
+      orderBy: { scheduledAt: 'asc' },
+      skip,
+      take,
+    }),
+    prisma.contentSchedule.count({ where }),
+  ]);
+
+  return { data, total };
 }
 
 export async function updateSchedule(
@@ -273,59 +396,75 @@ export async function publishScheduledContent() {
 
   const results: { scheduleId: string; success: boolean; error?: string }[] = [];
 
-  for (const schedule of dueSchedules) {
-    try {
-      const postId = await publishToSocialPlatform(
-        schedule.socialAccount.platform,
-        schedule.socialAccount.id,
-        schedule.contentPiece,
-      );
+  // Process in batches of PUBLISH_BATCH_SIZE
+  for (let i = 0; i < dueSchedules.length; i += PUBLISH_BATCH_SIZE) {
+    const batch = dueSchedules.slice(i, i + PUBLISH_BATCH_SIZE);
 
-      await prisma.contentSchedule.update({
-        where: { id: schedule.id },
-        data: { status: 'published', publishedAt: new Date() },
-      });
+    const batchResults = await Promise.allSettled(
+      batch.map(async (schedule) => {
+        const postId = await publishToSocialPlatform(
+          schedule.socialAccount.platform,
+          schedule.socialAccount.id,
+          schedule.contentPiece,
+        );
+        return { schedule, postId };
+      }),
+    );
 
-      await prisma.contentPiece.update({
-        where: { id: schedule.contentPieceId },
-        data: { status: 'published', publishedAt: new Date(), platformPostId: postId },
-      });
+    // Process batch results — DB updates sequential for safety
+    for (let j = 0; j < batchResults.length; j++) {
+      const result = batchResults[j]!;
+      const schedule = batch[j]!;
 
-      results.push({ scheduleId: schedule.id, success: true });
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-      const newRetryCount = schedule.retryCount + 1;
+      if (result.status === 'fulfilled') {
+        await prisma.$transaction([
+          prisma.contentSchedule.update({
+            where: { id: schedule.id },
+            data: { status: 'published', publishedAt: new Date() },
+          }),
+          prisma.contentPiece.update({
+            where: { id: schedule.contentPieceId },
+            data: { status: 'published', publishedAt: new Date(), platformPostId: result.value.postId },
+          }),
+        ]);
 
-      if (newRetryCount >= MAX_PUBLISH_RETRIES) {
-        // Max retries — mark as failed, notify admin
-        await prisma.contentSchedule.update({
-          where: { id: schedule.id },
-          data: { status: 'failed', lastError: errorMsg, retryCount: newRetryCount },
-        });
-
-        await prisma.contentPiece.update({
-          where: { id: schedule.contentPieceId },
-          data: { status: 'failed' },
-        });
-
-        await sendSlackNotification({
-          text: `Publication échouée après ${MAX_PUBLISH_RETRIES} tentatives : "${schedule.contentPiece.title}" sur ${schedule.socialAccount.platform} — ${errorMsg}`,
-        });
-
-        results.push({ scheduleId: schedule.id, success: false, error: errorMsg });
+        results.push({ scheduleId: schedule.id, success: true });
       } else {
-        // Schedule retry with backoff
-        const retryAt = new Date(Date.now() + RETRY_DELAY_MS);
-        await prisma.contentSchedule.update({
-          where: { id: schedule.id },
-          data: { scheduledAt: retryAt, lastError: errorMsg, retryCount: newRetryCount },
-        });
+        const errorMsg = result.reason instanceof Error ? result.reason.message : 'Unknown error';
+        const newRetryCount = schedule.retryCount + 1;
 
-        results.push({
-          scheduleId: schedule.id,
-          success: false,
-          error: `Retry ${newRetryCount}/${MAX_PUBLISH_RETRIES}: ${errorMsg}`,
-        });
+        if (newRetryCount >= MAX_PUBLISH_RETRIES) {
+          await prisma.$transaction([
+            prisma.contentSchedule.update({
+              where: { id: schedule.id },
+              data: { status: 'failed', lastError: errorMsg, retryCount: newRetryCount },
+            }),
+            prisma.contentPiece.update({
+              where: { id: schedule.contentPieceId },
+              data: { status: 'failed' },
+            }),
+          ]);
+
+          await sendSlackNotification({
+            text: `Publication échouée après ${MAX_PUBLISH_RETRIES} tentatives : "${schedule.contentPiece.title}" sur ${schedule.socialAccount.platform} — ${errorMsg}`,
+          });
+
+          results.push({ scheduleId: schedule.id, success: false, error: errorMsg });
+        } else {
+          // Exponential backoff capped at 2h
+          const backoff = Math.min(RETRY_DELAY_MS * Math.pow(2, newRetryCount - 1), 2 * 60 * 60 * 1000);
+          const retryAt = new Date(Date.now() + backoff);
+          await prisma.contentSchedule.update({
+            where: { id: schedule.id },
+            data: { scheduledAt: retryAt, lastError: errorMsg, retryCount: newRetryCount },
+          });
+
+          results.push({
+            scheduleId: schedule.id,
+            success: false,
+            error: `Retry ${newRetryCount}/${MAX_PUBLISH_RETRIES}: ${errorMsg}`,
+          });
+        }
       }
     }
   }
@@ -342,18 +481,10 @@ async function publishToSocialPlatform(
   const hashtags = Array.isArray(piece.hashtags) ? (piece.hashtags as string[]).join(' ') : '';
   const fullText = `${piece.body}\n\n${hashtags}`.trim();
 
-  // Get social account and decrypt tokens
+  // Get valid access token (cached + auto-refresh)
+  const accessToken = await getValidAccessToken(socialAccountId);
   const account = await prisma.socialAccount.findUnique({ where: { id: socialAccountId } });
-  if (!account || !account.accessTokenEncrypted) {
-    throw new Error(`Social account ${socialAccountId} not found or has no access token`);
-  }
-
-  let accessToken: string;
-  try {
-    accessToken = decrypt(account.accessTokenEncrypted);
-  } catch {
-    throw new Error(`Failed to decrypt access token for account ${socialAccountId}`);
-  }
+  if (!account) throw new Error(`Social account ${socialAccountId} not found`);
 
   switch (platform) {
     case 'linkedin': {
@@ -402,6 +533,25 @@ async function publishToSocialPlatform(
       const tweetId = await publishTweet(accessToken, fullText, mediaId);
       console.log(`[Twitter] Published: ${tweetId}`);
       return tweetId;
+    }
+
+    case 'instagram': {
+      const igUserId = process.env.META_IG_USER_ID || account.platformUserId || '';
+      if (!igUserId) throw new Error('META_IG_USER_ID not configured and no platformUserId on account');
+      if (!piece.mediaUrl) throw new Error('Instagram requires an image URL');
+
+      const postId = await publishInstagramPost(accessToken, igUserId, fullText, piece.mediaUrl);
+      console.log(`[Instagram] Published: ${postId}`);
+      return postId;
+    }
+
+    case 'facebook': {
+      const pageId = process.env.META_PAGE_ID || account.platformUserId || '';
+      if (!pageId) throw new Error('META_PAGE_ID not configured and no platformUserId on account');
+
+      const postId = await publishFacebookPost(accessToken, pageId, fullText, piece.mediaUrl ?? undefined);
+      console.log(`[Facebook] Published: ${postId}`);
+      return postId;
     }
 
     default: {

@@ -248,6 +248,14 @@ router.post('/tokens/refresh-expiring', asyncHandler(async (_req, res) => {
   res.json({ success: true, data: result });
 }));
 
+// MKT-110: Sync Notion content calendar
+router.post('/notion/sync-calendar', asyncHandler(async (req, res) => {
+  const { syncNotionCalendar } = await import('../services/notion-content.service');
+  const date = req.body.date ? new Date(req.body.date) : undefined;
+  const result = await syncNotionCalendar(date);
+  res.json({ success: true, data: result });
+}));
+
 // Email campaign send (called by n8n)
 router.post<{ campaignId: string }>('/email/send-campaign/:campaignId', asyncHandler(async (req, res) => {
   const { sendCampaign } = await import('../services/email-marketing.service');
