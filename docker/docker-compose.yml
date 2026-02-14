@@ -54,7 +54,7 @@ services:
       WEBHOOK_URL: http://localhost:5678
       GENERIC_TIMEZONE: Africa/Dakar
     ports:
-      - "5678:5678"
+      - "${N8N_PORT:-5679}:5678"
     volumes:
       - mkt-n8n-data:/home/node/.n8n
     depends_on:
