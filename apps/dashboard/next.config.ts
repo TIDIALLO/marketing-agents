@@ -1,9 +1,11 @@
 import type { NextConfig } from 'next';
+import path from 'path';
 
 const API_URL = process.env.API_URL ?? 'http://localhost:4100';
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  outputFileTracingRoot: path.join(__dirname, '../../'),
   transpilePackages: ['@synap6ia/shared'],
   async rewrites() {
     return [

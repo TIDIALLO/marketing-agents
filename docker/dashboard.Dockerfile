@@ -37,7 +37,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
 
 WORKDIR /app
 
-# Copy standalone output (includes server.js + node_modules)
+# Copy standalone output (outputFileTracingRoot = monorepo root)
+# Standalone includes: node_modules/, apps/dashboard/server.js, etc.
 COPY --from=build /app/apps/dashboard/.next/standalone ./
 # Copy static assets
 COPY --from=build /app/apps/dashboard/.next/static ./apps/dashboard/.next/static

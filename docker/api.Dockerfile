@@ -78,13 +78,13 @@ COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=build /app/package.json ./
 COPY --from=build /app/apps/api/package.json ./apps/api/
 COPY --from=build /app/packages/shared/package.json ./packages/shared/
-COPY --from=build /app/packages/shared/src ./packages/shared/src
+COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 
 ENV NODE_ENV=production
 EXPOSE 4100
 
 HEALTHCHECK --interval=15s --timeout=5s --retries=3 --start-period=30s \
-    CMD curl -f http://localhost:4100/api/system/health || exit 1
+    CMD curl -f http://localhost:4100/health || exit 1
 
 WORKDIR /app/apps/api
 CMD ["node", "dist/index.js"]
