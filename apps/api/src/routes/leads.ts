@@ -120,6 +120,16 @@ router.post<{ id: string }>(
   }),
 );
 
+// DELETE /api/leads/:id — delete lead
+router.delete<{ id: string }>(
+  '/:id',
+  requirePermission('content:create'),
+  asyncHandler(async (req, res) => {
+    await leadService.deleteLead(req.params.id);
+    res.json({ success: true, data: null });
+  }),
+);
+
 // ─── AI Actions ──────────────────────────────────────────────
 
 // POST /api/leads/:id/score — trigger AI scoring (Story 6.3)

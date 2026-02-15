@@ -19,7 +19,9 @@ const createLandingPageSchema = z.object({
   seoDescription: z.string().optional(),
 });
 
-const updateLandingPageSchema = createLandingPageSchema.partial();
+const updateLandingPageSchema = createLandingPageSchema.partial().extend({
+  isPublished: z.boolean().optional(),
+});
 
 const router = Router();
 const publicRouter = Router();

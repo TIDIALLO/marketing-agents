@@ -58,9 +58,9 @@ export async function createPillar(
   });
 }
 
-export async function listPillars(brandId: string) {
+export async function listPillars(brandId?: string) {
   return prisma.contentPillar.findMany({
-    where: { brandId },
+    where: brandId ? { brandId } : {},
     orderBy: { createdAt: 'desc' },
   });
 }
@@ -160,12 +160,27 @@ export async function createAudioInput(
   return input;
 }
 
-export async function listInputs(brandId?: string) {
-  return prisma.contentInput.findMany({
-    where: { ...(brandId ? { brandId } : {}) },
-    include: { _count: { select: { contentPieces: true } } },
-    orderBy: { createdAt: 'desc' },
-  });
+export async function listInputs(
+  brandId?: string,
+  pagination?: { skip?: number; take?: number },
+) {
+  const skip = pagination?.skip ?? 0;
+  const take = pagination?.take ?? 20;
+
+  const where = { ...(brandId ? { brandId } : {}) };
+
+  const [data, total] = await Promise.all([
+    prisma.contentInput.findMany({
+      where,
+      include: { _count: { select: { contentPieces: true } } },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take,
+    }),
+    prisma.contentInput.count({ where }),
+  ]);
+
+  return { data, total };
 }
 
 export async function getInputById(id: string) {
@@ -370,18 +385,33 @@ export async function generateVisual(pieceId: string) {
 
 // ─── Content Pieces CRUD ─────────────────────────────────────
 
-export async function listPieces(filters?: { brandId?: string; status?: string }) {
-  return prisma.contentPiece.findMany({
-    where: {
-      ...(filters?.brandId ? { brandId: filters.brandId } : {}),
-      ...(filters?.status ? { status: filters.status } : {}),
-    },
-    include: {
-      brand: { select: { id: true, name: true } },
-      contentInput: { select: { id: true, inputType: true, rawContent: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+export async function listPieces(
+  filters?: { brandId?: string; status?: string },
+  pagination?: { skip?: number; take?: number },
+) {
+  const skip = pagination?.skip ?? 0;
+  const take = pagination?.take ?? 20;
+
+  const where = {
+    ...(filters?.brandId ? { brandId: filters.brandId } : {}),
+    ...(filters?.status ? { status: filters.status } : {}),
+  };
+
+  const [data, total] = await Promise.all([
+    prisma.contentPiece.findMany({
+      where,
+      include: {
+        brand: { select: { id: true, name: true } },
+        contentInput: { select: { id: true, inputType: true, rawContent: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take,
+    }),
+    prisma.contentPiece.count({ where }),
+  ]);
+
+  return { data, total };
 }
 
 export async function getPieceById(id: string) {
@@ -389,7 +419,7 @@ export async function getPieceById(id: string) {
     where: { id },
     include: {
       brand: { select: { id: true, name: true } },
-      contentInput: true,
+      contentInput: { select: { id: true, inputType: true, rawContent: true, sourceUrl: true } },
       variants: true,
     },
   });

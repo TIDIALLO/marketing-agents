@@ -73,13 +73,6 @@ router.get(
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
     const brandId = req.query.brandId as string | undefined;
-    if (!brandId) {
-      res.status(400).json({
-        success: false,
-        error: { code: 'VALIDATION_ERROR', message: 'brandId query parameter requis' },
-      });
-      return;
-    }
     const pillars = await contentService.listPillars(brandId);
     res.json({ success: true, data: pillars });
   }),
@@ -143,8 +136,10 @@ router.get(
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
     const brandId = req.query.brandId as string | undefined;
-    const inputs = await contentService.listInputs(brandId);
-    res.json({ success: true, data: inputs });
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const result = await contentService.listInputs(brandId, { skip: (page - 1) * limit, take: limit });
+    res.json({ success: true, data: result.data, pagination: { page, limit, total: result.total } });
   }),
 );
 
@@ -190,11 +185,16 @@ router.get(
   '/pieces',
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
-    const pieces = await contentService.listPieces({
-      brandId: req.query.brandId as string | undefined,
-      status: req.query.status as string | undefined,
-    });
-    res.json({ success: true, data: pieces });
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const result = await contentService.listPieces(
+      {
+        brandId: req.query.brandId as string | undefined,
+        status: req.query.status as string | undefined,
+      },
+      { skip: (page - 1) * limit, take: limit },
+    );
+    res.json({ success: true, data: result.data, pagination: { page, limit, total: result.total } });
   }),
 );
 
@@ -338,13 +338,18 @@ router.get(
   '/schedules',
   requirePermission('content:view'),
   asyncHandler(async (req, res) => {
-    const schedules = await publishingService.listSchedules({
-      from: req.query.from ? new Date(req.query.from as string) : undefined,
-      to: req.query.to ? new Date(req.query.to as string) : undefined,
-      brandId: req.query.brandId as string | undefined,
-      status: req.query.status as string | undefined,
-    });
-    res.json({ success: true, data: schedules });
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
+    const result = await publishingService.listSchedules(
+      {
+        from: req.query.from ? new Date(req.query.from as string) : undefined,
+        to: req.query.to ? new Date(req.query.to as string) : undefined,
+        brandId: req.query.brandId as string | undefined,
+        status: req.query.status as string | undefined,
+      },
+      { skip: (page - 1) * limit, take: limit },
+    );
+    res.json({ success: true, data: result.data, pagination: { page, limit, total: result.total } });
   }),
 );
 

@@ -397,6 +397,12 @@ export async function updateLead(
   });
 }
 
+export async function deleteLead(id: string) {
+  const lead = await prisma.lead.findUnique({ where: { id } });
+  if (!lead) throw new AppError(404, 'NOT_FOUND', 'Lead introuvable');
+  await prisma.lead.delete({ where: { id } });
+}
+
 // ─── Pipeline Funnel Data (Story 6.6) ────────────────────────
 
 export async function getPipelineFunnel(

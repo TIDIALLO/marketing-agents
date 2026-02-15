@@ -86,6 +86,7 @@ export async function updateLandingPage(
     sections?: unknown;
     seoTitle?: string;
     seoDescription?: string;
+    isPublished?: boolean;
   },
 ) {
   const page = await prisma.landingPage.findUnique({ where: { id } });
@@ -103,6 +104,7 @@ export async function updateLandingPage(
       ...(data.sections !== undefined ? { sections: data.sections as Prisma.InputJsonValue } : {}),
       ...(data.seoTitle !== undefined ? { seoTitle: data.seoTitle } : {}),
       ...(data.seoDescription !== undefined ? { seoDescription: data.seoDescription } : {}),
+      ...(data.isPublished !== undefined ? { isPublished: data.isPublished } : {}),
     },
   });
 }
