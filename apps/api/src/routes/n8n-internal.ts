@@ -47,7 +47,7 @@ router.post<{inputId: string}>('/content/research/:inputId', asyncHandler(async 
 // MKT-103: AI content generation from input
 router.post<{inputId: string}>('/content/generate/:inputId', asyncHandler(async (req, res) => {
   const { generateContentPiece } = await import('../services/content.service');
-  const result = await generateContentPiece(req.params.inputId, req.body);
+  const result = await generateContentPiece(req.params.inputId, req.body.platform, req.body.frameworkId);
   res.json({ success: true, data: result });
 }));
 
