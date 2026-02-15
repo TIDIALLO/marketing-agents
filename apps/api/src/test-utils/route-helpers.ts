@@ -1,11 +1,11 @@
 import { generateAccessToken } from '../lib/jwt';
-import type { Role, JwtPayload } from '@synap6ia/shared';
+import type { Role, JwtPayload } from '@mktengine/shared';
 
 export function createTestToken(overrides?: Partial<JwtPayload>): string {
   return generateAccessToken({
     userId: 'user-1',
     role: 'owner',
-    email: 'admin@synap6ia.com',
+    email: 'admin@mktengine.dev',
     ...overrides,
   });
 }

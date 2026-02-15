@@ -1,4 +1,4 @@
-# Synap6ia Marketing — Documentation Technique Complète
+# MarketingEngine — Documentation Technique Complète
 
 > **Version** : 1.0.0 | **Date** : 8 février 2026 | **Méthode** : BMAD v6.0.0-Beta.7
 
@@ -24,7 +24,7 @@
 
 ## 1. Vision et Marché
 
-**Synap6ia Marketing** est un autopilot marketing IA SaaS multi-tenant orchestrant **3 agents spécialisés** pour automatiser le cycle complet : **création de contenu → amplification publicitaire → conversion de leads**.
+**MarketingEngine** est un autopilot marketing IA SaaS multi-tenant orchestrant **3 agents spécialisés** pour automatiser le cycle complet : **création de contenu → amplification publicitaire → conversion de leads**.
 
 Les agents communiquent via des **boucles de feedback inter-agents** (Redis pub/sub + bus persistant), créant un **système auto-améliorant**.
 
@@ -608,4 +608,4 @@ bdc21ed Story 1.3 — CORS + rate limiter
 
 ---
 
-*Document généré automatiquement — Synap6ia Marketing v1.0.0*
+*Document généré automatiquement — MarketingEngine v1.0.0*

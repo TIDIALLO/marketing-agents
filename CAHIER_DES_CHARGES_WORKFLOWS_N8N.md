@@ -1,4 +1,4 @@
-# Cahier des Charges - Workflows n8n Synap6ia Marketing
+# Cahier des Charges - Workflows n8n MarketingEngine
 
 ## Table des Matieres
 

@@ -173,7 +173,7 @@ describe('email-marketing.service', () => {
     it('should return campaign with brand and template', async () => {
       mockPrisma.emailCampaign.findUnique.mockResolvedValue({
         ...mockCampaign,
-        brand: { id: 'brand-1', name: 'Synap6ia' },
+        brand: { id: 'brand-1', name: 'MarketingEngine' },
         template: mockTemplate,
       });
 
@@ -239,7 +239,7 @@ describe('email-marketing.service', () => {
       mockPrisma.emailCampaign.findUnique.mockResolvedValue({
         ...mockCampaign,
         template: mockTemplate,
-        brand: { id: 'brand-1', name: 'Synap6ia' },
+        brand: { id: 'brand-1', name: 'MarketingEngine' },
       });
       mockPrisma.lead.findMany.mockResolvedValue([
         { id: 'lead-1', email: 'test@test.com', firstName: 'Jean', lastName: 'Dupont' },
@@ -319,7 +319,7 @@ describe('email-marketing.service', () => {
     it('should generate content and create template', async () => {
       mockPrisma.emailCampaign.findUnique.mockResolvedValue({
         ...mockCampaign,
-        brand: { name: 'Synap6ia', brandVoice: null, targetAudience: null },
+        brand: { name: 'MarketingEngine', brandVoice: null, targetAudience: null },
       });
       mockPrisma.product.findMany.mockResolvedValue([]);
       mockPrisma.emailTemplate.create.mockResolvedValue({ ...mockTemplate, id: 'et-auto' });
@@ -344,7 +344,7 @@ describe('email-marketing.service', () => {
 
       mockPrisma.emailCampaign.findUnique.mockResolvedValue({
         ...mockCampaign,
-        brand: { name: 'Synap6ia', brandVoice: null, targetAudience: null },
+        brand: { name: 'MarketingEngine', brandVoice: null, targetAudience: null },
       });
       mockPrisma.product.findMany.mockResolvedValue([]);
       mockPrisma.emailTemplate.create.mockResolvedValue(mockTemplate);

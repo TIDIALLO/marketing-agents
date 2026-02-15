@@ -29,7 +29,7 @@ const authService = await import('../auth.service');
 
 const mockUser = {
   id: 'user-1',
-  email: 'test@synap6ia.com',
+  email: 'test@mktengine.dev',
   passwordHash: await bcrypt.hash('Password123!', 4),
   firstName: 'Test',
   lastName: 'User',
@@ -62,7 +62,7 @@ describe('auth.service', () => {
       mockPrisma.platformUser.findUnique.mockResolvedValue(mockUser);
       mockPrisma.platformUser.update.mockResolvedValue(mockUser);
 
-      await expect(authService.login({ email: 'test@synap6ia.com', password: 'WrongPassword!' }))
+      await expect(authService.login({ email: 'test@mktengine.dev', password: 'WrongPassword!' }))
         .rejects.toThrow(AppError);
     });
 
@@ -71,12 +71,12 @@ describe('auth.service', () => {
       mockPrisma.platformUser.update.mockResolvedValue(mockUser);
 
       const result = await authService.login({
-        email: 'test@synap6ia.com',
+        email: 'test@mktengine.dev',
         password: 'Password123!',
       });
 
       expect(result.user.id).toBe('user-1');
-      expect(result.user.email).toBe('test@synap6ia.com');
+      expect(result.user.email).toBe('test@mktengine.dev');
       expect(result.accessToken).toBeDefined();
       expect(result.refreshToken).toBeDefined();
       expect(result.user).not.toHaveProperty('passwordHash');
@@ -113,7 +113,7 @@ describe('auth.service', () => {
       mockPrisma.platformUser.findUnique.mockResolvedValue(mockUser);
       mockPrisma.passwordResetToken.create.mockResolvedValue({ id: 'rt-1' });
 
-      await authService.forgotPassword('test@synap6ia.com');
+      await authService.forgotPassword('test@mktengine.dev');
 
       expect(mockPrisma.passwordResetToken.create).toHaveBeenCalledOnce();
       const { sendPasswordResetEmail } = await import('../../lib/email');

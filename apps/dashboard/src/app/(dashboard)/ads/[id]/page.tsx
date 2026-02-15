@@ -25,7 +25,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { LineChartComponent } from '@/components/charts/line-chart';
 import { BarChartComponent } from '@/components/charts/bar-chart';
-import type { AdCampaign, AdCreative, AdMetrics, CampaignStatus } from '@synap6ia/shared';
+import type { AdCampaign, AdCreative, AdMetrics, CampaignStatus } from '@mktengine/shared';
 
 const statusVariant: Record<CampaignStatus, 'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'outline'> = {
   draft: 'secondary',

@@ -3,7 +3,7 @@ import { validateEmail, normalizeEmail } from '../utils/validateEmail';
 
 describe('validateEmail', () => {
   it('should return true for valid emails', () => {
-    expect(validateEmail('admin@synap6ia.com')).toBe(true);
+    expect(validateEmail('admin@mktengine.dev')).toBe(true);
     expect(validateEmail('user+tag@example.org')).toBe(true);
     expect(validateEmail('  test@test.com  ')).toBe(true);
   });
@@ -19,7 +19,7 @@ describe('validateEmail', () => {
 
 describe('normalizeEmail', () => {
   it('should lowercase and trim', () => {
-    expect(normalizeEmail('  Admin@Synap6ia.COM  ')).toBe('admin@synap6ia.com');
+    expect(normalizeEmail('  Admin@MktEngine.DEV  ')).toBe('admin@mktengine.dev');
   });
 
   it('should handle already normalized emails', () => {

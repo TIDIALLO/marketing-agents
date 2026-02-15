@@ -1,4 +1,4 @@
-const EMAIL_FROM = process.env.EMAIL_FROM || 'noreply@synap6ia.com';
+const EMAIL_FROM = process.env.EMAIL_FROM || 'noreply@mktengine.dev';
 
 async function sendEmail(to: string, subject: string, html: string): Promise<void> {
   if (process.env.RESEND_API_KEY) {
@@ -13,7 +13,7 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
 export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<void> {
   await sendEmail(
     to,
-    'Réinitialisation de votre mot de passe — Synap6ia',
+    'Réinitialisation de votre mot de passe — MarketingEngine',
     `<p>Bonjour,</p><p>Cliquez sur le lien ci-dessous pour réinitialiser votre mot de passe :</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>Ce lien expire dans 1 heure.</p><p>Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>`,
   );
 }
@@ -61,7 +61,7 @@ export async function sendApprovalReminderEmail(
 ): Promise<void> {
   await sendEmail(
     to,
-    `Relance : approbation en attente depuis ${details.hoursWaiting}h — Synap6ia`,
+    `Relance : approbation en attente depuis ${details.hoursWaiting}h — MarketingEngine`,
     `<p>Bonjour,</p>
 <p>Une approbation est en attente depuis <strong>${details.hoursWaiting} heures</strong>.</p>
 <p>Type : ${details.entityType} — ID : ${details.entityId}</p>
@@ -79,7 +79,7 @@ export async function sendNurturingEmail(
 ): Promise<void> {
   await sendEmail(
     to,
-    `${details.firstName}, un message pour vous — Synap6ia`,
+    `${details.firstName}, un message pour vous — MarketingEngine`,
     `<p>${details.message.replace(/\n/g, '<br>')}</p>`,
   );
 }
@@ -96,7 +96,7 @@ export async function sendEscalationEmail(
 ): Promise<void> {
   await sendEmail(
     to,
-    `Escalation : ${details.leadName} (${details.company}) — Synap6ia`,
+    `Escalation : ${details.leadName} (${details.company}) — MarketingEngine`,
     `<p>Bonjour,</p>
 <p>Un lead a été escaladé vers vous :</p>
 <table style="border-collapse:collapse;width:100%;max-width:600px">
@@ -117,12 +117,12 @@ export async function sendWeeklyReportEmail(
 ): Promise<void> {
   await sendEmail(
     to,
-    `Rapport hebdomadaire marketing (${details.period}) — Synap6ia`,
+    `Rapport hebdomadaire marketing (${details.period}) — MarketingEngine`,
     `<div style="font-family:sans-serif;max-width:700px;margin:0 auto">
 <h2 style="color:#6366f1">Rapport Hebdomadaire Marketing</h2>
 <p style="color:#888">Période : ${details.period}</p>
 <div style="white-space:pre-wrap;line-height:1.6;padding:16px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb">${details.report}</div>
-<p style="color:#888;font-size:12px;margin-top:24px">Ce rapport a été généré automatiquement par Synap6ia Marketing AI.</p>
+<p style="color:#888;font-size:12px;margin-top:24px">Ce rapport a été généré automatiquement par MarketingEngine AI.</p>
 </div>`,
   );
 }
@@ -139,7 +139,7 @@ export async function sendLeadProposalEmail(
 ): Promise<void> {
   await sendEmail(
     to,
-    `${details.firstName}, prenons rendez-vous ! — Synap6ia`,
+    `${details.firstName}, prenons rendez-vous ! — MarketingEngine`,
     `<p>${details.proposalMessage.replace(/\n/g, '<br>')}</p>
 <p style="color:#888;font-size:12px">Ref: ${details.bookingId}</p>`,
   );

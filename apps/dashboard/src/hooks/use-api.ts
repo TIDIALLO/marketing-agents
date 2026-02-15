@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api';
-import type { Pagination } from '@synap6ia/shared';
+import type { Pagination } from '@mktengine/shared';
 
 interface UseApiResult<T> {
   data: T | null;

@@ -1,5 +1,5 @@
 {
-  "name": "@synap6ia/api",
+  "name": "@mktengine/api",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -19,7 +19,7 @@
   "dependencies": {
     "@notionhq/client": "^2.2.15",
     "@prisma/client": "^6.3.0",
-    "@synap6ia/shared": "*",
+    "@mktengine/shared": "*",
     "bcrypt": "^5.1.1",
     "bullmq": "^5.30.0",
     "cookie-parser": "^1.4.7",

@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { useAuth } from '@/providers/AuthProvider';
-import type { ServerToClientEvents, ClientToServerEvents } from '@synap6ia/shared';
+import type { ServerToClientEvents, ClientToServerEvents } from '@mktengine/shared';
 
 type TypedSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 

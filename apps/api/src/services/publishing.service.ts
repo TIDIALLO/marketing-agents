@@ -8,7 +8,7 @@ import { publishTweet } from '../lib/twitter';
 import { publishInstagramPost } from '../lib/instagram';
 import { publishFacebookPost } from '../lib/facebook';
 import { getRedis } from '../lib/redis';
-import type { Platform } from '@synap6ia/shared';
+import type { Platform } from '@mktengine/shared';
 
 const PLATFORM_LIMITS: Record<string, number> = {
   linkedin: 3000,

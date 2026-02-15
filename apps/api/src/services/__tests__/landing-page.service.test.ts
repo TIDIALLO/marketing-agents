@@ -29,7 +29,7 @@ vi.mock('../../lib/ai', () => ({
 
 const landingPageService = await import('../landing-page.service');
 
-const mockBrand = { id: 'brand-1', name: 'Synap6ia' };
+const mockBrand = { id: 'brand-1', name: 'MarketingEngine' };
 const mockPage = {
   id: 'lp-1',
   brandId: 'brand-1',
@@ -238,8 +238,8 @@ describe('landing-page.service', () => {
       features: null,
       testimonials: null,
       ctaText: 'Start Trial',
-      ctaUrl: 'https://synap6ia.com',
-      brand: { name: 'Synap6ia', brandVoice: null, targetAudience: null },
+      ctaUrl: 'https://mktengine.dev',
+      brand: { name: 'MarketingEngine', brandVoice: null, targetAudience: null },
     };
 
     it('should generate and upsert landing page content', async () => {

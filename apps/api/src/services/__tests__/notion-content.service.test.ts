@@ -29,8 +29,8 @@ vi.mock('../publishing.service', () => ({
 
 const { syncNotionCalendar } = await import('../notion-content.service');
 
-const mockBrand = { id: 'brand-1', name: 'Synap6ia' };
-const mockUser = { id: 'user-1', email: 'admin@synap6ia.com' };
+const mockBrand = { id: 'brand-1', name: 'MarketingEngine' };
+const mockUser = { id: 'user-1', email: 'admin@mktengine.dev' };
 const mockSocialAccounts = [
   { id: 'sa-1', platform: 'linkedin', brandId: 'brand-1', status: 'active' },
   { id: 'sa-2', platform: 'twitter', brandId: 'brand-1', status: 'active' },

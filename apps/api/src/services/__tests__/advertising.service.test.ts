@@ -46,7 +46,7 @@ vi.mock('../../lib/meta-ads', () => ({
 
 const advertisingService = await import('../advertising.service');
 
-const mockBrand = { name: 'Synap6ia', brandVoice: { tone: ['expert'] }, targetAudience: { segment: 'PME' } };
+const mockBrand = { name: 'MarketingEngine', brandVoice: { tone: ['expert'] }, targetAudience: { segment: 'PME' } };
 
 describe('advertising.service', () => {
   beforeEach(() => { vi.clearAllMocks(); });

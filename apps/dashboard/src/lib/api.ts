@@ -1,4 +1,4 @@
-import type { ApiResponse, ApiError } from '@synap6ia/shared';
+import type { ApiResponse, ApiError } from '@mktengine/shared';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 

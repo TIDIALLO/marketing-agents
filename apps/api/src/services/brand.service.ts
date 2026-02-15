@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../lib/errors';
-import type { BrandVoiceConfig } from '@synap6ia/shared';
+import type { BrandVoiceConfig } from '@mktengine/shared';
 
 function jsonOrDbNull(value: string | undefined): Prisma.InputJsonValue | typeof Prisma.JsonNull {
   return value ?? Prisma.JsonNull;

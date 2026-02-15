@@ -26,7 +26,7 @@ vi.mock('../../lib/ai', () => ({
 
 const productService = await import('../product.service');
 
-const mockBrand = { id: 'brand-1', name: 'Synap6ia', brandVoice: null, targetAudience: null };
+const mockBrand = { id: 'brand-1', name: 'MarketingEngine', brandVoice: null, targetAudience: null };
 const mockProduct = {
   id: 'prod-1',
   brandId: 'brand-1',
@@ -128,7 +128,7 @@ describe('product.service', () => {
     it('should return product with brand and landing pages', async () => {
       mockPrisma.product.findUnique.mockResolvedValue({
         ...mockProduct,
-        brand: { id: 'brand-1', name: 'Synap6ia' },
+        brand: { id: 'brand-1', name: 'MarketingEngine' },
         landingPages: [],
       });
 
@@ -147,7 +147,7 @@ describe('product.service', () => {
 
   describe('getProductBySlug', () => {
     it('should return product by slug', async () => {
-      mockPrisma.product.findUnique.mockResolvedValue({ ...mockProduct, brand: { id: 'brand-1', name: 'Synap6ia' } });
+      mockPrisma.product.findUnique.mockResolvedValue({ ...mockProduct, brand: { id: 'brand-1', name: 'MarketingEngine' } });
 
       const result = await productService.getProductBySlug('soc-autopilot-hub');
 
@@ -202,7 +202,7 @@ describe('product.service', () => {
     it('should generate AI content and update product', async () => {
       mockPrisma.product.findUnique.mockResolvedValue({
         ...mockProduct,
-        brand: { name: 'Synap6ia', brandVoice: null, targetAudience: null },
+        brand: { name: 'MarketingEngine', brandVoice: null, targetAudience: null },
       });
       mockPrisma.product.update.mockResolvedValue({ ...mockProduct, tagline: 'Your SOC on autopilot' });
 
@@ -225,7 +225,7 @@ describe('product.service', () => {
 
       mockPrisma.product.findUnique.mockResolvedValue({
         ...mockProduct,
-        brand: { name: 'Synap6ia', brandVoice: null, targetAudience: null },
+        brand: { name: 'MarketingEngine', brandVoice: null, targetAudience: null },
       });
       mockPrisma.product.update.mockResolvedValue(mockProduct);
 

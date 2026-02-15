@@ -1,6 +1,6 @@
-# Synap6ia Marketing Engine
+# MarketingEngine Engine
 
-Plateforme d'automatisation marketing pilotee par IA pour vendre [SOC Autopilot Hub](https://synap6ia.com). Trois agents specialises orchestres via n8n dans un monorepo Turborepo.
+Plateforme d'automatisation marketing pilotee par IA pour vendre [SOC Autopilot Hub](https://mktengine.dev). Trois agents specialises orchestres via n8n dans un monorepo Turborepo.
 
 ## Agents
 
@@ -102,7 +102,7 @@ npm run dev
 - **API** : http://localhost:4100
 - **Dashboard** : http://localhost:3100
 
-Compte admin par defaut : `admin@synap6ia.com` / `Admin123!`
+Compte admin par defaut : `admin@mktengine.dev` / `Admin123!`
 
 ## Tests
 
@@ -111,9 +111,9 @@ Compte admin par defaut : `admin@synap6ia.com` / `Admin123!`
 npm test
 
 # Par workspace
-npm run test --filter=@synap6ia/api       # 390 tests unitaires + 38 E2E
-npm run test --filter=@synap6ia/dashboard  # 74 tests
-npm run test --filter=@synap6ia/shared     # 30 tests
+npm run test --filter=@mktengine/api       # 390 tests unitaires + 38 E2E
+npm run test --filter=@mktengine/dashboard  # 74 tests
+npm run test --filter=@mktengine/shared     # 30 tests
 
 # E2E uniquement
 cd apps/api && npm run test:e2e

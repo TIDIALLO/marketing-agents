@@ -14,7 +14,7 @@ import { DataTable, type Column } from '@/components/ui/data-table';
 import { Funnel, type FunnelStage } from '@/components/ui/funnel';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import type { Lead, LeadTemperature, LeadStatus } from '@synap6ia/shared';
+import type { Lead, LeadTemperature, LeadStatus } from '@mktengine/shared';
 
 const tempVariant: Record<LeadTemperature, 'destructive' | 'warning' | 'secondary'> = {
   hot: 'destructive',

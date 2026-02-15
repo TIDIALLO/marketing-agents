@@ -26,13 +26,13 @@ vi.mock('../../lib/encryption', () => ({ encrypt: mockEncrypt }));
 
 const socialAccountService = await import('../social-account.service');
 
-const mockBrand = { id: 'brand-1', name: 'Synap6ia' };
+const mockBrand = { id: 'brand-1', name: 'MarketingEngine' };
 const mockAccount = {
   id: 'sa-1',
   brandId: 'brand-1',
   platform: 'linkedin',
   platformUserId: 'li-123',
-  platformUsername: 'synap6ia',
+  platformUsername: 'mktengine',
   status: 'active',
   tokenExpiresAt: new Date('2025-06-01'),
   createdAt: new Date(),

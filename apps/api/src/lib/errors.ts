@@ -1,4 +1,4 @@
-import type { ErrorCode } from '@synap6ia/shared';
+import type { ErrorCode } from '@mktengine/shared';
 
 export class AppError extends Error {
   constructor(

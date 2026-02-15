@@ -9,7 +9,7 @@ import type {
   LeadConvertedEvent,
   CampaignLaunchedEvent,
   ApprovalNewEvent,
-} from '@synap6ia/shared';
+} from '@mktengine/shared';
 
 export function useNotificationEvents() {
   const { toast } = useToast();

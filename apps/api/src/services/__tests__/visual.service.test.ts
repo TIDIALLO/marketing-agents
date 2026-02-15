@@ -9,7 +9,7 @@ vi.mock('../../lib/prisma', () => ({ prisma: mockPrisma }));
 vi.mock('../../lib/ai', () => ({
   claudeGenerate: vi.fn().mockResolvedValue(JSON.stringify({
     templateId: 'stat-highlight',
-    variables: { headline: 'SOC Stats', stat: '99.9%', description: 'Uptime', source: 'Synap6ia' },
+    variables: { headline: 'SOC Stats', stat: '99.9%', description: 'Uptime', source: 'MarketingEngine' },
   })),
 }));
 vi.mock('../../lib/visual-generator', () => ({
@@ -36,7 +36,7 @@ const visualService = await import('../visual.service');
 const mockPiece = {
   id: 'cp-1', title: 'SOC Stats', body: 'Key metrics about SOC', platform: 'linkedin',
   brand: {
-    name: 'Synap6ia',
+    name: 'MarketingEngine',
     brandVoice: { tone: ['expert'] },
     visualGuidelines: { primaryColor: '#6366f1' },
   },

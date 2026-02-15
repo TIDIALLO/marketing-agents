@@ -14,7 +14,7 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import type { Brand } from '@synap6ia/shared';
+import type { Brand } from '@mktengine/shared';
 
 export default function BrandsPage() {
   const t = useTranslations('brands');

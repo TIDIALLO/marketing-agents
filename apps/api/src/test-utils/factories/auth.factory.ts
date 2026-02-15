@@ -1,7 +1,7 @@
 const defaults = {
   platformUser: {
     id: 'user-1',
-    email: 'admin@synap6ia.com',
+    email: 'admin@mktengine.dev',
     passwordHash: '$2b$04$test-hash',
     firstName: 'Admin',
     lastName: 'User',

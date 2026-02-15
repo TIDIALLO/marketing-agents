@@ -36,7 +36,7 @@ const defaults = {
     title: 'Why SMBs Need Automated SOC',
     body: 'In 2025, small businesses face the same cyber threats as enterprises. Here is why automated SOC matters.',
     hashtags: ['#cybersecurity', '#SMB', '#automation'],
-    callToAction: 'Learn more at synap6ia.com',
+    callToAction: 'Learn more at mktengine.dev',
     mediaUrl: null,
     mediaPrompt: null,
     framework: 'AIDA',

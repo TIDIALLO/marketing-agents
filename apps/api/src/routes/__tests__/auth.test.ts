@@ -9,7 +9,7 @@ vi.mock('../../services/auth.service', () => ({
     refreshToken: 'rt-123',
   }),
   login: vi.fn().mockResolvedValue({
-    user: { id: 'u-1', email: 'admin@synap6ia.com', role: 'owner' },
+    user: { id: 'u-1', email: 'admin@mktengine.dev', role: 'owner' },
     accessToken: 'at-456',
     refreshToken: 'rt-456',
   }),
@@ -69,7 +69,7 @@ describe('Auth Routes', () => {
   it('POST /api/auth/login — 200 happy path with Set-Cookie', async () => {
     const res = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'admin@synap6ia.com', password: 'password123' });
+      .send({ email: 'admin@mktengine.dev', password: 'password123' });
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);

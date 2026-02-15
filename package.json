@@ -1,8 +1,8 @@
 {
-  "name": "synap6ia-marketing",
+  "name": "marketing-engine",
   "version": "1.0.0",
   "private": true,
-  "description": "Synap6ia Marketing — AI Marketing Autopilot Platform",
+  "description": "MarketingEngine — AI Marketing Autopilot Platform",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -13,10 +13,10 @@
     "lint": "turbo lint",
     "test": "turbo test",
     "clean": "turbo clean",
-    "dev:api": "turbo dev --filter=@synap6ia/api",
-    "dev:dashboard": "turbo dev --filter=@synap6ia/dashboard",
-    "build:api": "turbo build --filter=@synap6ia/api",
-    "build:dashboard": "turbo build --filter=@synap6ia/dashboard"
+    "dev:api": "turbo dev --filter=@mktengine/api",
+    "dev:dashboard": "turbo dev --filter=@mktengine/dashboard",
+    "build:api": "turbo build --filter=@mktengine/api",
+    "build:dashboard": "turbo build --filter=@mktengine/dashboard"
   },
   "devDependencies": {
     "turbo": "^2.4.0",

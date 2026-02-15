@@ -1,7 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { AppError } from '../lib/errors';
 import { claudeGenerate } from '../lib/ai';
-import type { BrandVoiceConfig } from '@synap6ia/shared';
+import type { BrandVoiceConfig } from '@mktengine/shared';
 
 type RepurposeFormat = 'thread' | 'blog-draft' | 'newsletter' | 'carousel';
 

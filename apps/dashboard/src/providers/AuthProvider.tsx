@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { User } from '@synap6ia/shared';
+import type { User } from '@mktengine/shared';
 import {
   apiClient,
   setAccessToken,

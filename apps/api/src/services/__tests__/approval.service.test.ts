@@ -62,11 +62,11 @@ const mockPiece = {
   platform: 'linkedin',
   body: 'Test body content',
   mediaUrl: null,
-  brand: { name: 'Synap6ia' },
+  brand: { name: 'MarketingEngine' },
 };
 
 const mockUser = {
-  email: 'admin@synap6ia.com',
+  email: 'admin@mktengine.dev',
   notificationPreferences: { slack: true, email: true },
 };
 
@@ -120,7 +120,7 @@ describe('approval.service', () => {
 
       await approvalService.submitForApproval('content_piece', 'cp-1', 'user-1');
 
-      expect(mockSendApprovalEmail).toHaveBeenCalledWith('admin@synap6ia.com', expect.objectContaining({
+      expect(mockSendApprovalEmail).toHaveBeenCalledWith('admin@mktengine.dev', expect.objectContaining({
         title: 'Test Post',
         platform: 'linkedin',
       }));
@@ -131,7 +131,7 @@ describe('approval.service', () => {
       mockPrisma.approvalQueue.create.mockResolvedValue(mockApproval);
       mockPrisma.contentPiece.findFirst.mockResolvedValue(mockPiece);
       mockPrisma.platformUser.findFirst.mockResolvedValue({
-        email: 'admin@synap6ia.com',
+        email: 'admin@mktengine.dev',
         notificationPreferences: { email: false, slack: true },
       });
 

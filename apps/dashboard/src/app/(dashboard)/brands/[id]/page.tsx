@@ -16,7 +16,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
-import type { Brand, BrandVoiceConfig, Product, SocialAccount } from '@synap6ia/shared';
+import type { Brand, BrandVoiceConfig, Product, SocialAccount } from '@mktengine/shared';
 
 const DEFAULT_VOICE: BrandVoiceConfig = {
   tone: ['expert', 'accessible'],

@@ -37,11 +37,11 @@ vi.mock('../../lib/copy-frameworks', () => ({
 
 const contentService = await import('../content.service');
 
-const mockBrand = { id: 'brand-1', name: 'Synap6ia', brandVoice: null, targetAudience: null, contentGuidelines: null };
+const mockBrand = { id: 'brand-1', name: 'MarketingEngine', brandVoice: null, targetAudience: null, contentGuidelines: null };
 const mockInput = {
   id: 'ci-1', brandId: 'brand-1', createdById: 'user-1', inputType: 'text',
   rawContent: 'AI in SOC ops', aiResearch: null, status: 'pending',
-  brand: { id: 'brand-1', name: 'Synap6ia', brandVoice: null, targetAudience: null, contentGuidelines: null },
+  brand: { id: 'brand-1', name: 'MarketingEngine', brandVoice: null, targetAudience: null, contentGuidelines: null },
 };
 const mockPiece = {
   id: 'cp-1', brandId: 'brand-1', title: 'Test', body: 'Test body', platform: 'linkedin',

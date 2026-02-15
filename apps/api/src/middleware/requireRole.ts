@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { Role, Permission } from '@synap6ia/shared';
-import { PERMISSIONS } from '@synap6ia/shared';
+import type { Role, Permission } from '@mktengine/shared';
+import { PERMISSIONS } from '@mktengine/shared';
 import { AppError } from '../lib/errors';
 
 export function requireRole(...roles: Role[]) {

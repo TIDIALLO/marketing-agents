@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Timeline, type TimelineItem } from '@/components/ui/timeline';
-import type { Lead, LeadInteraction, LeadTemperature } from '@synap6ia/shared';
+import type { Lead, LeadInteraction, LeadTemperature } from '@mktengine/shared';
 
 const tempVariant: Record<LeadTemperature, 'destructive' | 'warning' | 'secondary'> = {
   hot: 'destructive',

@@ -161,7 +161,7 @@ router.get('/form/:brandId', async (req, res) => {
       <button type="submit" id="submit-btn">Envoyer</button>
     </form>
   </div>
-  <div class="powered">Powered by Synap6ia</div>
+  <div class="powered">Powered by MarketingEngine</div>
   <script>
     document.getElementById('lead-form').addEventListener('submit', async function(e) {
       e.preventDefault();

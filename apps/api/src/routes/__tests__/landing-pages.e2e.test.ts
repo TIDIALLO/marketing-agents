@@ -30,7 +30,7 @@ describe('Landing Pages E2E Flow', () => {
         heroTitle: 'Secure Your Business Today',
         heroSubtitle: 'SOC automation for SMBs',
         heroCtaText: 'Get a Demo',
-        heroCtaUrl: 'https://test.synap6ia.com/demo',
+        heroCtaUrl: 'https://test.mktengine.dev/demo',
         seoTitle: 'E2E Test - SOC Autopilot',
         seoDescription: 'E2E test landing page for SOC Autopilot Hub',
         sections: [
@@ -70,7 +70,7 @@ describe('Landing Pages E2E Flow', () => {
 
     const e2ePage = res.body.data.find((p: any) => p.id === createdPageId);
     expect(e2ePage).toBeDefined();
-    expect(e2ePage.brand.name).toBe('Synap6ia');
+    expect(e2ePage.brand.name).toBe('MarketingEngine');
     expect(e2ePage.product.name).toBe('SOC Autopilot Hub');
   });
 
@@ -124,7 +124,7 @@ describe('Landing Pages E2E Flow', () => {
     expect(res.body.success).toBe(true);
     expect(res.body.data.slug).toBe(testSlug);
     expect(res.body.data.heroTitle).toBe('Secure Your Business Today');
-    expect(res.body.data.brand.name).toBe('Synap6ia');
+    expect(res.body.data.brand.name).toBe('MarketingEngine');
     expect(res.body.data.product.name).toBe('SOC Autopilot Hub');
   });
 

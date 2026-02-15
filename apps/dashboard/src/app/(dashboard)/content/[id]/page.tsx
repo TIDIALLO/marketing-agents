@@ -23,7 +23,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { LineChartComponent } from '@/components/charts/line-chart';
-import type { ContentPiece, ContentMetrics } from '@synap6ia/shared';
+import type { ContentPiece, ContentMetrics } from '@mktengine/shared';
 
 const statusVariantMap = {
   draft: 'secondary',

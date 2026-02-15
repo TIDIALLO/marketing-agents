@@ -1,4 +1,4 @@
-# Cahier des Charges - Plateforme Marketing AI Synap6ia
+# Cahier des Charges - Plateforme Marketing AI MarketingEngine
 
 **Version**: 1.0
 **Date**: 2026-02-04
@@ -12,7 +12,7 @@
 
 ### 1.1 Vision du Projet
 
-Synap6ia Marketing est une plateforme d'automatisation marketing pilotée par intelligence artificielle. Elle orchestre 3 agents AI spécialisés via n8n pour couvrir l'intégralité du cycle marketing : création de contenu, amplification publicitaire et conversion de leads.
+MarketingEngine est une plateforme d'automatisation marketing pilotée par intelligence artificielle. Elle orchestre 3 agents AI spécialisés via n8n pour couvrir l'intégralité du cycle marketing : création de contenu, amplification publicitaire et conversion de leads.
 
 La plateforme est conçue pour un usage interne immédiat, avec une architecture multi-tenant dès le départ permettant une revente future en mode white-label.
 

@@ -4,7 +4,7 @@ import { AppError } from '../lib/errors';
 import { claudeGenerate, whisperTranscribe, dalleGenerate } from '../lib/ai';
 import { triggerWorkflow } from '../lib/n8n';
 import { getFramework, getFrameworksForPlatform, buildFrameworkPrompt } from '../lib/copy-frameworks';
-import type { Platform, BrandVoiceConfig } from '@synap6ia/shared';
+import type { Platform, BrandVoiceConfig } from '@mktengine/shared';
 
 const PLATFORM_LIMITS: Record<string, number> = {
   linkedin: 3000,

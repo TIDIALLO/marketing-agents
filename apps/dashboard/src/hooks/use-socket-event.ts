@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useSocket } from '@/providers/SocketProvider';
-import type { ServerToClientEvents } from '@synap6ia/shared';
+import type { ServerToClientEvents } from '@mktengine/shared';
 
 export function useSocketEvent<K extends keyof ServerToClientEvents>(
   event: K,

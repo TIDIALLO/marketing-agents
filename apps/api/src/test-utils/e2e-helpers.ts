@@ -6,7 +6,7 @@ export { app, prisma };
 
 export const request = supertest(app);
 
-const ADMIN_EMAIL = 'admin@synap6ia.com';
+const ADMIN_EMAIL = 'admin@mktengine.dev';
 const ADMIN_PASSWORD = 'Admin123!';
 
 export const SEED = {

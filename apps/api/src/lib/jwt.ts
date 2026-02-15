@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import type { Response } from 'express';
-import type { JwtPayload } from '@synap6ia/shared';
+import type { JwtPayload } from '@mktengine/shared';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret-change-me';

@@ -93,7 +93,7 @@ describe('reporting.service', () => {
       ]);
       mockPrisma.contentPiece.findUnique.mockResolvedValue({
         title: 'Test Post', platform: 'linkedin', body: 'Test body', mediaUrl: null,
-        brand: { name: 'Synap6ia' },
+        brand: { name: 'MarketingEngine' },
       });
 
       const result = await reportingService.getApprovalQueue({ status: 'pending' });

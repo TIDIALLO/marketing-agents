@@ -30,7 +30,7 @@ describe('Products E2E Flow', () => {
     expect(seedProduct).toBeDefined();
     expect(seedProduct.name).toBe('SOC Autopilot Hub');
     expect(seedProduct.slug).toBe('soc-autopilot-hub');
-    expect(seedProduct.brand.name).toBe('Synap6ia');
+    expect(seedProduct.brand.name).toBe('MarketingEngine');
   });
 
   // --- Get seed product by ID ---
@@ -62,7 +62,7 @@ describe('Products E2E Flow', () => {
         description: 'Product created by E2E test',
         tagline: 'Test tagline',
         ctaText: 'Get Started',
-        ctaUrl: 'https://test.synap6ia.com',
+        ctaUrl: 'https://test.mktengine.dev',
       })
       .expect(201);
 

@@ -18,7 +18,7 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 const mockUser = {
-  id: 'user-1', email: 'admin@synap6ia.com', firstName: 'Admin', lastName: 'User',
+  id: 'user-1', email: 'admin@mktengine.dev', firstName: 'Admin', lastName: 'User',
   role: 'owner' as const, notificationPreferences: { slack: true, email: true, whatsapp: false },
   createdAt: '2025-01-01', updatedAt: '2025-01-01',
 };
@@ -58,11 +58,11 @@ describe('AuthProvider', () => {
     } as any);
 
     await act(async () => {
-      await result.current.login('admin@synap6ia.com', 'password');
+      await result.current.login('admin@mktengine.dev', 'password');
     });
 
     expect(result.current.isAuthenticated).toBe(true);
-    expect(result.current.user?.email).toBe('admin@synap6ia.com');
+    expect(result.current.user?.email).toBe('admin@mktengine.dev');
   });
 
   it('should clear state on logout', async () => {
@@ -104,7 +104,7 @@ describe('AuthProvider', () => {
 
     await act(async () => {
       await result.current.register({
-        email: 'admin@synap6ia.com', password: 'pass', firstName: 'Admin', lastName: 'User',
+        email: 'admin@mktengine.dev', password: 'pass', firstName: 'Admin', lastName: 'User',
       });
     });
 

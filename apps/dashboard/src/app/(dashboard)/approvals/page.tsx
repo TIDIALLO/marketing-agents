@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import type { ApprovalStatus, ApprovalEntityType } from '@synap6ia/shared';
+import type { ApprovalStatus, ApprovalEntityType } from '@mktengine/shared';
 
 interface ApprovalItem {
   id: string;

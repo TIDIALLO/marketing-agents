@@ -9,7 +9,7 @@ import { useToast } from '@/providers/ToastProvider';
 import { Button } from '@/components/ui/button';
 import { CalendarGrid } from '@/components/calendar/calendar-grid';
 import type { CalendarEventData } from '@/components/calendar/calendar-event';
-import type { ContentSchedule, ContentPiece } from '@synap6ia/shared';
+import type { ContentSchedule, ContentPiece } from '@mktengine/shared';
 
 const MONTH_NAMES = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',

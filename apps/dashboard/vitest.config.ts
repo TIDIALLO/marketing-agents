@@ -14,7 +14,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
-      '@synap6ia/shared': resolve(__dirname, '../../packages/shared/src'),
+      '@mktengine/shared': resolve(__dirname, '../../packages/shared/src'),
     },
   },
 });

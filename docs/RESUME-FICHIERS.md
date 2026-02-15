@@ -1,4 +1,4 @@
-# Synap6ia Marketing — Résumé de tous les fichiers du projet
+# MarketingEngine — Résumé de tous les fichiers du projet
 
 > **Généré le** : 2026-02-08
 > **Fichiers source** : 134 | **Lignes TypeScript** : 10 789
@@ -77,7 +77,7 @@
 
 | Fichier | Description |
 |---------|-------------|
-| `package.json` | Package `@synap6ia/shared` |
+| `package.json` | Package `@mktengine/shared` |
 | `tsconfig.json` | Config TS (ESNext) |
 | **`src/index.ts`** | Barrel export principal |
 
@@ -129,9 +129,9 @@
 
 | Fichier | Description |
 |---------|-------------|
-| `package.json` | `@synap6ia/api` — Express 4, Prisma 6, Vitest 3, Zod, ioredis, Socket.io, bcrypt, jsonwebtoken |
+| `package.json` | `@mktengine/api` — Express 4, Prisma 6, Vitest 3, Zod, ioredis, Socket.io, bcrypt, jsonwebtoken |
 | `tsconfig.json` | Config TS (CommonJS, node moduleResolution) |
-| `vitest.config.ts` | Config Vitest (environnement node, alias `@synap6ia/shared`) |
+| `vitest.config.ts` | Config Vitest (environnement node, alias `@mktengine/shared`) |
 | `.env` | Variables d'environnement API |
 
 ### 5.2 Prisma

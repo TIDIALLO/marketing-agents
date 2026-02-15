@@ -5,12 +5,12 @@ import {
   verifyAccessToken,
   verifyRefreshToken,
 } from '../jwt';
-import type { JwtPayload } from '@synap6ia/shared';
+import type { JwtPayload } from '@mktengine/shared';
 
 const mockPayload: JwtPayload = {
   userId: 'user-123',
   role: 'admin',
-  email: 'test@synap6ia.com',
+  email: 'test@mktengine.dev',
 };
 
 describe('JWT', () => {

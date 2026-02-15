@@ -2,7 +2,7 @@ import { prisma } from '../lib/prisma';
 import { getCalendarEntries, markAsSynced } from '../lib/notion';
 import { generateContentPiece } from './content.service';
 import { getNextOptimalTime } from './publishing.service';
-import type { Platform } from '@synap6ia/shared';
+import type { Platform } from '@mktengine/shared';
 
 interface SyncResult {
   created: number;

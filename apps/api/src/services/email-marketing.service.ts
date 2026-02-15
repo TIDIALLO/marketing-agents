@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma';
 import { AppError } from '../lib/errors';
 import { claudeGenerate } from '../lib/ai';
 
-const EMAIL_FROM = process.env.EMAIL_FROM || 'noreply@synap6ia.com';
+const EMAIL_FROM = process.env.EMAIL_FROM || 'noreply@mktengine.dev';
 const APP_URL = process.env.APP_URL || 'http://localhost:3100';
 
 // ─── Email Templates CRUD ───────────────────────────────────

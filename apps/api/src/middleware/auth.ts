@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken } from '../lib/jwt';
 import { AppError } from '../lib/errors';
-import type { JwtPayload } from '@synap6ia/shared';
+import type { JwtPayload } from '@mktengine/shared';
 
 declare global {
   namespace Express {

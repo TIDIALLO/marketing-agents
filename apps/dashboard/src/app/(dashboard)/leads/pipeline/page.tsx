@@ -9,7 +9,7 @@ import { apiClient } from '@/lib/api';
 import { useToast } from '@/providers/ToastProvider';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import type { Lead, LeadStatus } from '@synap6ia/shared';
+import type { Lead, LeadStatus } from '@mktengine/shared';
 
 // Pipeline columns definition (order matters for the Kanban)
 const PIPELINE_STAGES: { status: LeadStatus; label: string; color: string; bgColor: string }[] = [

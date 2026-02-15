@@ -24,7 +24,7 @@ describe('Leads E2E Flow', () => {
         brandId: SEED.brandId,
         firstName: 'E2E',
         lastName: 'LeadTest',
-        email: 'e2e-lead@test.synap6ia.com',
+        email: 'e2e-lead@test.mktengine.dev',
         company: 'E2E Corp',
         source: 'form',
         gdprConsent: true,
@@ -41,7 +41,7 @@ describe('Leads E2E Flow', () => {
       where: { id: createdLeadId },
     });
     expect(dbLead).not.toBeNull();
-    expect(dbLead!.email).toBe('e2e-lead@test.synap6ia.com');
+    expect(dbLead!.email).toBe('e2e-lead@test.mktengine.dev');
     expect(dbLead!.firstName).toBe('E2E');
     expect(dbLead!.company).toBe('E2E Corp');
     expect(dbLead!.brandId).toBe(SEED.brandId);
@@ -57,7 +57,7 @@ describe('Leads E2E Flow', () => {
         brandId: SEED.brandId,
         firstName: 'E2E',
         lastName: 'LeadUpdated',
-        email: 'e2e-lead@test.synap6ia.com',
+        email: 'e2e-lead@test.mktengine.dev',
         company: 'E2E Corp Updated',
         source: 'ad',
         gdprConsent: true,
@@ -85,7 +85,7 @@ describe('Leads E2E Flow', () => {
       .send({
         firstName: 'E2E',
         lastName: 'FormLead',
-        email: 'e2e-formlead@test.synap6ia.com',
+        email: 'e2e-formlead@test.mktengine.dev',
         company: 'E2E Form Corp',
         gdprConsent: true,
       })
@@ -96,7 +96,7 @@ describe('Leads E2E Flow', () => {
 
     // Verify in DB
     const dbLead = await prisma.lead.findFirst({
-      where: { email: 'e2e-formlead@test.synap6ia.com' },
+      where: { email: 'e2e-formlead@test.mktengine.dev' },
     });
     expect(dbLead).not.toBeNull();
     expect(dbLead!.source).toBe('form');
@@ -115,7 +115,7 @@ describe('Leads E2E Flow', () => {
 
     const e2eLead = res.body.data.find((l: any) => l.id === createdLeadId);
     expect(e2eLead).toBeDefined();
-    expect(e2eLead.email).toBe('e2e-lead@test.synap6ia.com');
+    expect(e2eLead.email).toBe('e2e-lead@test.mktengine.dev');
   });
 
   // --- Filter leads by status ---
@@ -143,7 +143,7 @@ describe('Leads E2E Flow', () => {
 
     expect(res.body.success).toBe(true);
     expect(res.body.data.id).toBe(createdLeadId);
-    expect(res.body.data.email).toBe('e2e-lead@test.synap6ia.com');
+    expect(res.body.data.email).toBe('e2e-lead@test.mktengine.dev');
   });
 
   // --- Update lead ---

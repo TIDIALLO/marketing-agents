@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { claudeGenerate } from '../lib/ai';
 import { publishEvent } from '../lib/redis';
-import type { BrandVoiceConfig } from '@synap6ia/shared';
+import type { BrandVoiceConfig } from '@mktengine/shared';
 
 // ─── Compound Learning Service (Phase 4.5) ─────────────────────
 // Analyzes performance by framework/tone/platform, auto-updates Brand Voice,

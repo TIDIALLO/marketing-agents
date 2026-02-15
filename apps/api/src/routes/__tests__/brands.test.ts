@@ -4,7 +4,7 @@ import type { Express } from 'express';
 import { createTestToken, createTokenForRole, authHeader } from '../../test-utils/route-helpers';
 
 vi.mock('../../services/brand.service', () => ({
-  listBrands: vi.fn().mockResolvedValue([{ id: 'b1', name: 'Synap6ia' }]),
+  listBrands: vi.fn().mockResolvedValue([{ id: 'b1', name: 'MarketingEngine' }]),
   createBrand: vi.fn().mockResolvedValue({ id: 'b2', name: 'New Brand' }),
   getBrandById: vi.fn().mockResolvedValue({ id: 'b1' }),
   updateBrand: vi.fn().mockResolvedValue({ id: 'b1' }),

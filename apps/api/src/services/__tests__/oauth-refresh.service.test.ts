@@ -25,7 +25,7 @@ describe('oauth-refresh.service', () => {
   describe('refreshExpiringTokens', () => {
     it('should refresh LinkedIn tokens', async () => {
       mockPrisma.socialAccount.findMany.mockResolvedValue([
-        { id: 'sa-1', platform: 'linkedin', refreshTokenEncrypted: 'enc-token', platformUsername: 'synap6ia', brand: { name: 'Synap6ia' } },
+        { id: 'sa-1', platform: 'linkedin', refreshTokenEncrypted: 'enc-token', platformUsername: 'mktengine', brand: { name: 'MarketingEngine' } },
       ]);
       mockPrisma.socialAccount.update.mockResolvedValue({});
 
@@ -44,7 +44,7 @@ describe('oauth-refresh.service', () => {
 
     it('should refresh Twitter tokens', async () => {
       mockPrisma.socialAccount.findMany.mockResolvedValue([
-        { id: 'sa-2', platform: 'twitter', refreshTokenEncrypted: 'enc-token', platformUsername: 'synap6ia', brand: { name: 'Synap6ia' } },
+        { id: 'sa-2', platform: 'twitter', refreshTokenEncrypted: 'enc-token', platformUsername: 'mktengine', brand: { name: 'MarketingEngine' } },
       ]);
       mockPrisma.socialAccount.update.mockResolvedValue({});
 
@@ -57,7 +57,7 @@ describe('oauth-refresh.service', () => {
       (refreshLinkedInToken as any).mockRejectedValueOnce(new Error('Token revoked'));
 
       mockPrisma.socialAccount.findMany.mockResolvedValue([
-        { id: 'sa-1', platform: 'linkedin', refreshTokenEncrypted: 'enc', platformUsername: 'synap6ia', brand: { name: 'Synap6ia' } },
+        { id: 'sa-1', platform: 'linkedin', refreshTokenEncrypted: 'enc', platformUsername: 'mktengine', brand: { name: 'MarketingEngine' } },
       ]);
 
       const results = await oauthService.refreshExpiringTokens();

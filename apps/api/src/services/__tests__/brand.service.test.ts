@@ -26,7 +26,7 @@ const brandService = await import('../brand.service');
 const mockBrand = {
   id: 'brand-1',
   userId: 'user-1',
-  name: 'Synap6ia',
+  name: 'MarketingEngine',
   brandVoice: null,
   targetAudience: null,
   contentGuidelines: null,
@@ -44,12 +44,12 @@ describe('brand.service', () => {
     it('should create a brand with required fields', async () => {
       mockPrisma.brand.create.mockResolvedValue(mockBrand);
 
-      const result = await brandService.createBrand('user-1', { name: 'Synap6ia' });
+      const result = await brandService.createBrand('user-1', { name: 'MarketingEngine' });
 
       expect(mockPrisma.brand.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           userId: 'user-1',
-          name: 'Synap6ia',
+          name: 'MarketingEngine',
         }),
       });
       expect(result).toEqual(mockBrand);

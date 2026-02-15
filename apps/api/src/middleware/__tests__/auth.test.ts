@@ -3,7 +3,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { authMiddleware } from '../auth';
 import { generateAccessToken } from '../../lib/jwt';
 import { AppError } from '../../lib/errors';
-import type { JwtPayload } from '@synap6ia/shared';
+import type { JwtPayload } from '@mktengine/shared';
 
 function createMockReq(headers: Record<string, string> = {}): Request {
   return { headers } as unknown as Request;
@@ -51,7 +51,7 @@ describe('authMiddleware', () => {
     const payload: JwtPayload = {
       userId: 'u-1',
       role: 'admin',
-      email: 'test@synap6ia.com',
+      email: 'test@mktengine.dev',
     };
     const token = generateAccessToken(payload);
     const req = createMockReq({ authorization: `Bearer ${token}` });

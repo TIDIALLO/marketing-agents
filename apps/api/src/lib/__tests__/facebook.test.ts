@@ -49,7 +49,7 @@ describe('publishFacebookPost', () => {
     vi.stubGlobal('fetch', mockFetch);
 
     const { publishFacebookPost } = await import('../facebook');
-    const postId = await publishFacebookPost('token', 'page-1', 'Hello from Synap6ia');
+    const postId = await publishFacebookPost('token', 'page-1', 'Hello from MarketingEngine');
 
     expect(postId).toBe('post-456');
     expect(mockFetch).toHaveBeenCalledWith(
@@ -57,7 +57,7 @@ describe('publishFacebookPost', () => {
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({
-          message: 'Hello from Synap6ia',
+          message: 'Hello from MarketingEngine',
           access_token: 'token',
         }),
       }),

@@ -5,7 +5,7 @@ import { IntlProvider } from '@/providers/IntlProvider';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Synap6ia Marketing',
+  title: 'MarketingEngine',
   description: 'AI Marketing Autopilot Platform',
 };
 

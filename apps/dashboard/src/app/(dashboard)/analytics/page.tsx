@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Sparkline } from '@/components/charts/sparkline';
 import { AreaChartComponent } from '@/components/charts/area-chart';
 import { PieChartComponent } from '@/components/charts/pie-chart';
-import type { ContentSignal } from '@synap6ia/shared';
+import type { ContentSignal } from '@mktengine/shared';
 
 interface DashboardData {
   contentByStatus: { status: string; count: number }[];

@@ -12,11 +12,11 @@ async function main() {
   const adminHash = await bcrypt.hash('Admin123!', BCRYPT_ROUNDS);
 
   const admin = await prisma.platformUser.upsert({
-    where: { email: 'admin@synap6ia.com' },
+    where: { email: 'admin@mktengine.dev' },
     update: {},
     create: {
       id: 'seed-user-001',
-      email: 'admin@synap6ia.com',
+      email: 'admin@mktengine.dev',
       passwordHash: adminHash,
       firstName: 'Amadou',
       lastName: 'Diallo',
@@ -32,7 +32,7 @@ async function main() {
     create: {
       id: 'seed-brand-001',
       userId: admin.id,
-      name: 'Synap6ia',
+      name: 'MarketingEngine',
       brandVoice: 'Expert technique mais accessible. Ton confiant et orienté résultats. Nous parlons le langage des CTOs et DSI qui veulent sécuriser leur infrastructure sans complexité.',
       targetAudience: 'CTOs, DSI, RSSI et responsables IT de PME en Afrique de l\'Ouest (Sénégal, Côte d\'Ivoire) et France. Entreprises de 10 à 500 employés cherchant à automatiser leur cybersécurité.',
       contentGuidelines: 'Toujours inclure un CTA vers la démo ou le site. Mettre en avant le ROI et les gains de temps. Éviter le jargon cyber excessif — rester concret avec des cas d\'usage.',
@@ -87,7 +87,7 @@ async function main() {
         { name: 'Cheikh Fall', company: 'InnovLab Abidjan', role: 'CEO', quote: 'Le rapport de conformité RGPD généré automatiquement nous a fait gagner 3 mois de travail consultant.', avatar: null },
       ],
       ctaText: 'Demander une démo gratuite',
-      ctaUrl: 'https://synap6ia.com/demo',
+      ctaUrl: 'https://mktengine.dev/demo',
       isActive: true,
       sortOrder: 1,
     },
@@ -107,7 +107,7 @@ async function main() {
       heroTitle: 'Votre SOC automatisé, prêt en 24h',
       heroSubtitle: 'Détection, réponse et conformité sans équipe cyber dédiée. À partir de 299€/mois.',
       heroCtaText: 'Demander une démo gratuite',
-      heroCtaUrl: 'https://synap6ia.com/demo',
+      heroCtaUrl: 'https://mktengine.dev/demo',
       sections: [
         { type: 'features', title: 'Pourquoi SOC Autopilot Hub ?' },
         { type: 'pricing', title: 'Tarifs simples et transparents' },
@@ -153,7 +153,7 @@ async function main() {
       brandId: brand.id,
       platform: 'twitter',
       title: 'Thread cybersécurité PME',
-      body: 'Une PME sur deux a subi une cyberattaque en 2025.\n\nMais seulement 14% ont un SOC.\n\nLe SOC Autopilot Hub change ça : 299€/mois, déployé en 24h.\n\n→ synap6ia.com/demo',
+      body: 'Une PME sur deux a subi une cyberattaque en 2025.\n\nMais seulement 14% ont un SOC.\n\nLe SOC Autopilot Hub change ça : 299€/mois, déployé en 24h.\n\n→ mktengine.dev/demo',
       hashtags: JSON.stringify(['CyberSec', 'PME', 'SOC']),
       status: 'draft',
       engagementScore: 0,
@@ -296,8 +296,8 @@ async function main() {
 
   // ─── Summary ─────────────────────────────────────────────────
   console.log('\nSeed completed!\n');
-  console.log('Login: admin@synap6ia.com / Admin123!');
-  console.log('Brand: Synap6ia');
+  console.log('Login: admin@mktengine.dev / Admin123!');
+  console.log('Brand: MarketingEngine');
   console.log('Product: SOC Autopilot Hub');
 }
 

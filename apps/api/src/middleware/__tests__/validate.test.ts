@@ -23,7 +23,7 @@ describe('validate', () => {
   });
 
   it('should pass valid data and set parsed body', () => {
-    const body = { email: 'test@synap6ia.com', password: 'password123' };
+    const body = { email: 'test@mktengine.dev', password: 'password123' };
     const req = createReqWithBody(body);
     const middleware = validate(loginSchema);
 
@@ -49,7 +49,7 @@ describe('validate', () => {
   });
 
   it('should reject short password', () => {
-    const req = createReqWithBody({ email: 'test@synap6ia.com', password: 'short' });
+    const req = createReqWithBody({ email: 'test@mktengine.dev', password: 'short' });
     const middleware = validate(loginSchema);
 
     middleware(req, mockRes, next);

@@ -43,7 +43,7 @@ services:
       DB_TYPE: postgresdb
       DB_POSTGRESDB_HOST: mkt-postgres
       DB_POSTGRESDB_PORT: 5432
-      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB:-synap6ia_marketing}
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB:-marketing_engine}
       DB_POSTGRESDB_USER: ${POSTGRES_USER:-mkt_user}
       DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:-dev_password_123}
       DB_POSTGRESDB_SCHEMA: n8n

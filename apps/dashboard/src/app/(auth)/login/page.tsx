@@ -51,7 +51,7 @@ export default function LoginPage() {
         </div>
         <CardTitle>Connexion</CardTitle>
         <CardDescription>
-          Connectez-vous à votre espace Synap6ia Marketing
+          Connectez-vous à votre espace MarketingEngine
         </CardDescription>
       </CardHeader>
       <CardContent>

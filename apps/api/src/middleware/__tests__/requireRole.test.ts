@@ -2,11 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
 import { requireRole, requirePermission } from '../requireRole';
 import { AppError } from '../../lib/errors';
-import type { JwtPayload } from '@synap6ia/shared';
+import type { JwtPayload } from '@mktengine/shared';
 
 function createReqWithRole(role: JwtPayload['role']): Request {
   return {
-    user: { userId: 'u-1', role, email: 'test@synap6ia.com' },
+    user: { userId: 'u-1', role, email: 'test@mktengine.dev' },
   } as unknown as Request;
 }
 

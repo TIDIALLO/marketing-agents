@@ -17,7 +17,7 @@ const repurposeService = await import('../repurpose.service');
 const mockPiece = {
   id: 'cp-1', brandId: 'brand-1', title: 'SOC Post', body: 'Long LinkedIn post about SOC',
   hashtags: ['#soc'], platform: 'linkedin',
-  brand: { id: 'brand-1', name: 'Synap6ia', brandVoice: { tone: ['expert'], languageStyle: { formality: 'professional' } }, targetAudience: null },
+  brand: { id: 'brand-1', name: 'MarketingEngine', brandVoice: { tone: ['expert'], languageStyle: { formality: 'professional' } }, targetAudience: null },
 };
 
 describe('repurpose.service', () => {

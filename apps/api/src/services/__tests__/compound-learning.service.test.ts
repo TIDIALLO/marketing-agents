@@ -44,7 +44,7 @@ describe('compound-learning.service', () => {
   describe('autoUpdateBrandVoice', () => {
     it('should update brand voice when confidence is high enough', async () => {
       mockPrisma.brand.findUniqueOrThrow.mockResolvedValue({
-        id: 'brand-1', name: 'Synap6ia',
+        id: 'brand-1', name: 'MarketingEngine',
         brandVoice: { tone: ['expert'], frameworks: ['AIDA'], vocabulary: { preferred: [], avoided: [] }, examples: { good: [], bad: [] } },
       });
       mockPrisma.contentPiece.findMany.mockResolvedValue([
@@ -61,7 +61,7 @@ describe('compound-learning.service', () => {
 
     it('should not update when no brand voice configured', async () => {
       mockPrisma.brand.findUniqueOrThrow.mockResolvedValue({
-        id: 'brand-1', name: 'Synap6ia', brandVoice: null,
+        id: 'brand-1', name: 'MarketingEngine', brandVoice: null,
       });
 
       const result = await compoundLearningService.autoUpdateBrandVoice('brand-1');
@@ -80,7 +80,7 @@ describe('compound-learning.service', () => {
       }));
 
       mockPrisma.brand.findUniqueOrThrow.mockResolvedValue({
-        id: 'brand-1', name: 'Synap6ia',
+        id: 'brand-1', name: 'MarketingEngine',
         brandVoice: { tone: ['expert'], frameworks: [], vocabulary: { preferred: [], avoided: [] }, examples: { good: [], bad: [] } },
       });
       mockPrisma.contentPiece.findMany.mockResolvedValue([]);

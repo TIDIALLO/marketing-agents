@@ -5,7 +5,7 @@ import { prisma } from '../lib/prisma';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../lib/jwt';
 import { AppError } from '../lib/errors';
 import { sendPasswordResetEmail } from '../lib/email';
-import type { JwtPayload, Role } from '@synap6ia/shared';
+import type { JwtPayload, Role } from '@mktengine/shared';
 
 const BCRYPT_ROUNDS = 12;
 

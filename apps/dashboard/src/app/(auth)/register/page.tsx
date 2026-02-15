@@ -53,7 +53,7 @@ export default function RegisterPage() {
         </div>
         <CardTitle>Créer un compte</CardTitle>
         <CardDescription>
-          Démarrez avec Synap6ia Marketing
+          Démarrez avec MarketingEngine
         </CardDescription>
       </CardHeader>
       <CardContent>

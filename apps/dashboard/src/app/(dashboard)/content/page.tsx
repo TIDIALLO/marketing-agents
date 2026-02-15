@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import type { ContentPiece, ContentStatus, Platform } from '@synap6ia/shared';
+import type { ContentPiece, ContentStatus, Platform } from '@mktengine/shared';
 
 const statusVariantMap: Record<ContentStatus, 'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'outline'> = {
   draft: 'secondary',

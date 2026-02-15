@@ -11,7 +11,7 @@ interface IntlContextValue {
 
 const IntlContext = createContext<IntlContextValue | null>(null);
 
-const STORAGE_KEY = 'synap6ia_locale';
+const STORAGE_KEY = 'mktengine_locale';
 
 function detectLocale(): Locale {
   // Check localStorage

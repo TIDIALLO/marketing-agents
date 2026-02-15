@@ -399,7 +399,7 @@ async function launchFacebookCampaign(campaign: {
           title: creative.title,
           body: creative.body,
           imageUrl: creative.imageUrl,
-          linkUrl: process.env.LANDING_PAGE_URL || 'https://synap6ia.com',
+          linkUrl: process.env.LANDING_PAGE_URL || 'https://mktengine.dev',
           callToActionType: creative.callToActionType || 'LEARN_MORE',
           pageId: META_PAGE_ID,
         });

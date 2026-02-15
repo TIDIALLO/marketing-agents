@@ -3,7 +3,7 @@ import { request, prisma, cleanupTestData } from '../../test-utils/e2e-helpers';
 
 describe('Auth E2E Flow', () => {
   const testUser = {
-    email: 'e2e-auth@test.synap6ia.com',
+    email: 'e2e-auth@test.mktengine.dev',
     password: 'E2ePassword123!',
     firstName: 'E2E',
     lastName: 'AuthTest',

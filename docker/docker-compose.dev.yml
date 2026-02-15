@@ -6,7 +6,7 @@ version: "3.8"
 services:
   mkt-postgres:
     environment:
-      POSTGRES_DB: synap6ia_marketing
+      POSTGRES_DB: marketing_engine
       POSTGRES_USER: mkt_user
       POSTGRES_PASSWORD: dev_password_123
 

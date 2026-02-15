@@ -1,7 +1,7 @@
 'use client';
 
 import { Badge } from '@/components/ui/badge';
-import type { ContentStatus, Platform } from '@synap6ia/shared';
+import type { ContentStatus, Platform } from '@mktengine/shared';
 
 const statusVariantMap: Record<ContentStatus, 'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'outline'> = {
   draft: 'secondary',
