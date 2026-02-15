@@ -3,13 +3,17 @@ import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16;
 
+let cachedKey: Buffer | null = null;
+
 function getEncryptionKey(): Buffer {
+  if (cachedKey) return cachedKey;
   const key = process.env.ENCRYPTION_KEY;
   if (!key) {
     throw new Error('ENCRYPTION_KEY environment variable is required');
   }
   // Key must be 32 bytes (64 hex chars) for AES-256
-  return Buffer.from(key, 'hex');
+  cachedKey = Buffer.from(key, 'hex');
+  return cachedKey;
 }
 
 export function encrypt(plaintext: string): string {

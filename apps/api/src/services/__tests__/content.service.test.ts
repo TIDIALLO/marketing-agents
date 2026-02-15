@@ -5,8 +5,8 @@ import { AppError } from '../../lib/errors';
 const mockPrisma = {
   brand: { findFirst: vi.fn() },
   contentPillar: { create: vi.fn(), findMany: vi.fn() },
-  contentInput: { create: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn() },
-  contentPiece: { create: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn() },
+  contentInput: { create: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn(), count: vi.fn() },
+  contentPiece: { create: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn(), count: vi.fn() },
 };
 
 vi.mock('../../lib/prisma', () => ({ prisma: mockPrisma }));
@@ -166,9 +166,12 @@ describe('content.service', () => {
   });
 
   describe('listPieces', () => {
-    it('should filter by status', async () => {
+    it('should filter by status and return paginated result', async () => {
       mockPrisma.contentPiece.findMany.mockResolvedValue([]);
-      await contentService.listPieces({ status: 'draft' });
+      mockPrisma.contentPiece.count.mockResolvedValue(0);
+      const result = await contentService.listPieces({ status: 'draft' });
+      expect(result.data).toEqual([]);
+      expect(result.total).toBe(0);
       expect(mockPrisma.contentPiece.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: expect.objectContaining({ status: 'draft' }) }),
       );

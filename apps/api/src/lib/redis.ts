@@ -6,7 +6,11 @@ let redis: Redis | null = null;
 
 export function getRedis(): Redis {
   if (!redis) {
-    redis = new Redis(REDIS_URL, { maxRetriesPerRequest: 3, lazyConnect: true, retryStrategy: (times) => Math.min(times * 500, 5000) });
+    redis = new Redis(REDIS_URL, {
+      maxRetriesPerRequest: 3,
+      lazyConnect: false,
+      retryStrategy: (times) => Math.min(times * 100, 2000) + Math.random() * 100,
+    });
     redis.on('error', (err) => {
       if (!redis?.status || redis.status === 'connecting') {
         console.error('[Redis] Connection error:', err.message);
@@ -27,3 +31,11 @@ export async function publishEvent(
     console.log('[DEV] Redis not available — skipping publish');
   }
 }
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  if (redis) {
+    await redis.quit().catch(() => {});
+    redis = null;
+  }
+});

@@ -3,8 +3,9 @@ import { AppError } from '../../lib/errors';
 
 const mockPrisma = {
   contentPiece: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
-  contentSchedule: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
-  socialAccount: { findUnique: vi.fn() },
+  contentSchedule: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn() },
+  socialAccount: { findUnique: vi.fn(), update: vi.fn() },
+  $transaction: vi.fn((args: unknown[]) => Promise.all(args)),
 };
 
 vi.mock('../../lib/prisma', () => ({ prisma: mockPrisma }));
@@ -15,13 +16,23 @@ vi.mock('../../lib/ai', () => ({
   dalleGenerate: vi.fn().mockResolvedValue('https://dalle.example.com/img.png'),
 }));
 vi.mock('../../lib/slack', () => ({ sendSlackNotification: vi.fn().mockResolvedValue(true) }));
-vi.mock('../../lib/encryption', () => ({ decrypt: vi.fn().mockReturnValue('access-token') }));
+vi.mock('../../lib/encryption', () => ({
+  decrypt: vi.fn().mockReturnValue('access-token'),
+  encrypt: vi.fn().mockReturnValue('encrypted-token'),
+}));
 vi.mock('../../lib/linkedin', () => ({
   publishLinkedInPost: vi.fn().mockResolvedValue('urn:li:share:123'),
+  refreshLinkedInToken: vi.fn().mockResolvedValue({ accessToken: 'new-token', expiresIn: 3600 }),
 }));
 vi.mock('../../lib/twitter', () => ({
   publishTweet: vi.fn().mockResolvedValue('tweet-123'),
   uploadTwitterMedia: vi.fn().mockResolvedValue('media-123'),
+}));
+vi.mock('../../lib/redis', () => ({
+  getRedis: vi.fn().mockReturnValue({
+    get: vi.fn().mockResolvedValue(null),
+    setex: vi.fn().mockResolvedValue('OK'),
+  }),
 }));
 
 const publishingService = await import('../publishing.service');
@@ -104,10 +115,12 @@ describe('publishing.service', () => {
   });
 
   describe('listSchedules', () => {
-    it('should return schedules with filters', async () => {
+    it('should return schedules with filters and pagination', async () => {
       mockPrisma.contentSchedule.findMany.mockResolvedValue([{ id: 'cs-1' }]);
+      mockPrisma.contentSchedule.count.mockResolvedValue(1);
       const result = await publishingService.listSchedules({ brandId: 'brand-1', status: 'scheduled' });
-      expect(result).toHaveLength(1);
+      expect(result.data).toHaveLength(1);
+      expect(result.total).toBe(1);
     });
   });
 
@@ -158,7 +171,7 @@ describe('publishing.service', () => {
         contentPiece: { title: 'Post', body: 'Body', hashtags: [], mediaUrl: null },
         socialAccount: { id: 'sa-1', platform: 'linkedin' },
       }]);
-      mockPrisma.socialAccount.findUnique.mockResolvedValue(null); // Will cause publishToSocialPlatform to throw
+      mockPrisma.socialAccount.findUnique.mockResolvedValue(null); // Will cause getValidAccessToken to throw
       mockPrisma.contentSchedule.update.mockResolvedValue({});
 
       const results = await publishingService.publishScheduledContent();
