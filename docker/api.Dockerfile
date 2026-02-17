@@ -29,7 +29,7 @@ COPY apps/api/ apps/api/
 
 # Generate Prisma client and build
 RUN npx prisma generate --schema=apps/api/prisma/schema.prisma
-RUN npx turbo build --filter=@synap6ia/api
+RUN npx turbo build --filter=@mktengine/api
 
 # ---- Stage 3: Runtime ----
 FROM node:20-slim AS runtime

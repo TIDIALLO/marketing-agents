@@ -28,7 +28,7 @@ ENV API_URL=http://mkt-api:4100
 # Ensure public dir exists (may be empty)
 RUN mkdir -p apps/dashboard/public
 
-RUN npx turbo build --filter=@synap6ia/dashboard
+RUN npx turbo build --filter=@mktengine/dashboard
 
 # ---- Stage 3: Runtime ----
 FROM node:20-slim AS runtime
